@@ -1,136 +1,212 @@
 #include "window_main.hpp"
 #include "panel_viewport.hpp"
+#include "core/properties_panel.hpp"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
 #include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QSlider>
-#include <QTreeWidget>
 
 namespace ollygon {
 
-MainWindow::MainWindow(QWidget* parent)
-    : QMainWindow(parent)
-    , viewport(nullptr)
-    , properties_dock(nullptr)
-    , scene_dock(nullptr)
-{
-    setWindowTitle("ollygon");
-    resize(1280, 720);
+    MainWindow::MainWindow(QWidget* parent)
+        : QMainWindow(parent)
+        , viewport(nullptr)
+        , properties_panel(nullptr)
+        , scene_dock(nullptr)
+        , scene_tree(nullptr)
+    {
+        setWindowTitle("ollygon");
+        resize(1280, 720);
 
-    // TEMP add our test sphere
-    auto sphere_node = std::make_unique<SceneNode>("Test Sphere");
-    sphere_node->sphere = std::make_unique<Sphere>(1.0f);
-    sphere_node->transform.position = Vec3();
-    sphere_node->sphere->albedo = Colour(0.9f, 0.5f, 0.1f);
-    scene.get_root()->children.push_back(std::move(sphere_node));
+        setup_cornell_box();
+        setup_ui();
+        create_menus();
+    }
 
-    setup_ui();
-    create_menus();
-}
+    MainWindow::~MainWindow() = default;
 
-MainWindow::~MainWindow() = default;
+    void MainWindow::setup_ui() {
+        viewport = new PanelViewport(this);
+        viewport->set_scene(&scene);
+        viewport->set_selection_handler(&selection_handler);
+        setCentralWidget(viewport);
 
-void MainWindow::setup_ui() {
-    viewport = new PanelViewport(this);
-    viewport->set_scene(&scene);
-    setCentralWidget(viewport);
+        create_dock_widgets();
+    }
 
-    create_dock_widgets();
-}
+    void MainWindow::setup_cornell_box() {
+        // cornell box dimensions from Shirley, flipped 180deg and recentred on a different ocrner
+        Colour red(0.65f, 0.05f, 0.05f);
+        Colour white(0.73f, 0.73f, 0.73f);
+        Colour green(0.12f, 0.45f, 0.15f);
+        Colour light_emission(15.0f, 15.0f, 15.0f);
+        Colour orange(1.0f, 0.6f, 0.2f);
+        Colour yellow(1.0f, 0.9f, 0.3f);
 
-void MainWindow::create_dock_widgets() {
-    // properties panel
-    properties_dock = new QDockWidget("Properties", this);
-    properties_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+        auto left_wall = std::make_unique<SceneNode>("Left Wall");
+        left_wall->node_type = NodeType::Mesh;
+        left_wall->geometry = std::make_unique<QuadGeometry>(
+            Vec3(0, 0, 0),
+            Vec3(0, 5.55f, 0),
+            Vec3(0, 0, -5.55f)
+        );
+        left_wall->albedo = green;
+        scene.get_root()->add_child(std::move(left_wall));
 
-    QWidget* properties_widget = new QWidget();
-    QVBoxLayout* properties_layout = new QVBoxLayout(properties_widget);
+        auto right_wall = std::make_unique<SceneNode>("Right Wall");
+        right_wall->node_type = NodeType::Mesh;
+        right_wall->geometry = std::make_unique<QuadGeometry>(
+            Vec3(5.55f, 0, 0),
+            Vec3(0, 5.55f, 0),
+            Vec3(0, 0, -5.55f)
+        );
+        right_wall->albedo = red;
+        scene.get_root()->add_child(std::move(right_wall));
 
-    // TEMP we just use oru test sphere for now
-    SceneNode* sphere_node = !scene.get_root()->children.empty() ? scene.get_root()->children[0].get() : nullptr;
+        auto floor = std::make_unique<SceneNode>("Floor");
+        floor->node_type = NodeType::Mesh;
+        floor->geometry = std::make_unique<QuadGeometry>(
+            Vec3(5.55f, 0, 0),
+            Vec3(-5.55f, 0, 0),
+            Vec3(0, 0, -5.55f)
+        );
+        floor->albedo = white;
+        scene.get_root()->add_child(std::move(floor));
 
-    if (sphere_node && sphere_node->sphere) {
-        properties_layout->addWidget(new QLabel("position"));
+        auto ceiling = std::make_unique<SceneNode>("Ceiling");
+        ceiling->node_type = NodeType::Mesh;
+        ceiling->geometry = std::make_unique<QuadGeometry>(
+            Vec3(0, 5.55f, -5.55f),
+            Vec3(5.55f, 0, 0),
+            Vec3(0, 0, 5.55f)
+        );
+        ceiling->albedo = white;
+        scene.get_root()->add_child(std::move(ceiling));
 
-        auto add_slider = [&](const QString& label, float& value, float min, float max) {
-            QHBoxLayout* row = new QHBoxLayout();
-            row->addWidget(new QLabel(label));
-            QSlider* slider = new QSlider(Qt::Horizontal);
-            slider->setRange(int(min * 100), int(max * 100));
-            slider->setValue(int(value * 1000));
+        auto back_wall = std::make_unique<SceneNode>("Back Wall");
+        back_wall->node_type = NodeType::Mesh;
+        back_wall->geometry = std::make_unique<QuadGeometry>(
+            Vec3(5.55f, 0, -5.55f),
+            Vec3(-5.55f, 0, 0),
+            Vec3(0, 5.55f, 0)
+        );
+        back_wall->albedo = white;
+        scene.get_root()->add_child(std::move(back_wall));
 
-            connect(slider, &QSlider::valueChanged, [this, &value, slider]() {
-                value = slider->value() / 100.0f;
-                viewport->update();
-            });
+        auto light_node = std::make_unique<SceneNode>("Area Light");
+        light_node->node_type = NodeType::Light;
+        light_node->light = std::make_unique<Light>();
+        light_node->light->type = LightType::Area;
+        light_node->light->colour = light_emission;
+        light_node->light->intensity = 1.0f;
+        light_node->light->is_area_light = true;
 
-            row->addWidget(slider);
-            properties_layout->addLayout(row);
-         };
-        add_slider("X:", sphere_node->transform.position.x, -10.0f, 10.0f);
-        add_slider("Y:", sphere_node->transform.position.y, -10.0f, 10.0f);
-        add_slider("Z:", sphere_node->transform.position.z, -10.0f, 10.0f);
+        light_node->geometry = std::make_unique<QuadGeometry>(
+            Vec3(2.12f, 5.54f, -3.32f),
+            Vec3(1.30f, 0, 0),
+            Vec3(0, 0, 1.05f)
+        );
+        light_node->albedo = light_emission;
+        scene.get_root()->add_child(std::move(light_node));
 
-        properties_layout->addSpacing(15);
+        auto tall_box = std::make_unique<SceneNode>("Tall Box");
+        tall_box->node_type = NodeType::Mesh;
+        tall_box->geometry = std::make_unique<BoxGeometry>(
+            Vec3(1.25f, 0, -4.60f),
+            Vec3(2.90f, 3.30f, -2.95f)
+        );
+        tall_box->albedo = orange;
+        scene.get_root()->add_child(std::move(tall_box));
 
-        //colour controls
-        properties_layout->addWidget(new QLabel("Albedo"));
-        add_slider("R:", sphere_node->sphere->albedo.r, 0.0f, 1.0f);
-        add_slider("G:", sphere_node->sphere->albedo.g, 0.0f, 1.0f);
-        add_slider("B:", sphere_node->sphere->albedo.b, 0.0f, 1.0f);
+        auto short_box = std::make_unique<SceneNode>("Short Box");
+        short_box->node_type = NodeType::Mesh;
+        short_box->geometry = std::make_unique<BoxGeometry>(
+            Vec3(2.60f, 0, -2.30f),
+            Vec3(4.25f, 1.65f, -0.65f)
+        );
+        short_box->albedo = yellow;
+        scene.get_root()->add_child(std::move(short_box));
 
-        //properties_layout->addSpacing(15);
-        properties_layout->addStretch();
-        properties_dock->setWidget(properties_widget);
-        addDockWidget(Qt::RightDockWidgetArea, properties_dock);
+        auto sphere = std::make_unique<SceneNode>("Sphere");
+        sphere->node_type = NodeType::Mesh;
+        sphere->geometry = std::make_unique<SphereGeometry>(0.50f);
+        sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
+        sphere->albedo = Colour(0.9f, 0.9f, 0.9f);
+        scene.get_root()->add_child(std::move(sphere));
+    }
 
-        /////
-        //scene hierarchy panel on left
-        //TEMP just a mvp, this will all be moved and redone
+    void MainWindow::create_dock_widgets() {
+        // properties panel
+        properties_panel = new PropertiesPanel(&selection_handler, this);
+        addDockWidget(Qt::RightDockWidgetArea, properties_panel);
+
+        // scene hierarchy panel
         scene_dock = new QDockWidget("Scene", this);
         scene_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
-        QTreeWidget* scene_tree = new QTreeWidget();
+        scene_tree = new QTreeWidget();
         scene_tree->setHeaderLabel("Scene Hierarchy");
 
-        //recursive walk through
-        std::function<QTreeWidgetItem*(SceneNode*, QTreeWidgetItem*)> add_node =
+        // connect tree selection to selection handler
+        connect(scene_tree, &QTreeWidget::itemClicked, [this](QTreeWidgetItem* item, int column) {
+            SceneNode* node = static_cast<SceneNode*>(item->data(0, Qt::UserRole).value<void*>());
+            selection_handler.set_selected(node);
+            });
+
+        populate_scene_tree();
+
+        scene_tree->expandAll();
+        scene_dock->setWidget(scene_tree);
+        addDockWidget(Qt::LeftDockWidgetArea, scene_dock);
+    }
+
+    void MainWindow::populate_scene_tree() {
+        scene_tree->clear();
+
+        std::function<QTreeWidgetItem* (SceneNode*, QTreeWidgetItem*)> add_node =
             [&](SceneNode* node, QTreeWidgetItem* parent) -> QTreeWidgetItem* {
             QTreeWidgetItem* item = parent
                 ? new QTreeWidgetItem(parent)
                 : new QTreeWidgetItem(scene_tree);
-            item->setText(0, QString::fromStdString(node->name));
+
+            QString display_name = QString::fromStdString(node->name);
+
+            // add type indicator
+            switch (node->node_type) {
+            case NodeType::Mesh:
+                display_name += " [Mesh]";
+                break;
+            case NodeType::Light:
+                display_name += " [Light]";
+                break;
+            case NodeType::Empty:
+                break;
+            }
+
+            item->setText(0, display_name);
+            item->setData(0, Qt::UserRole, QVariant::fromValue(static_cast<void*>(node)));
 
             for (auto& child : node->children) {
                 add_node(child.get(), item);
             }
 
             return item;
-        };
+            };
 
-        // populate
         add_node(scene.get_root(), nullptr);
-        scene_tree->expandAll();
-
-        scene_dock->setWidget(scene_tree);
-        addDockWidget(Qt::LeftDockWidgetArea, scene_dock);
     }
-}
 
-void MainWindow::create_menus() {
-    QMenu* file_menu = menuBar()->addMenu("&File");
+    void MainWindow::create_menus() {
+        QMenu* file_menu = menuBar()->addMenu("&File");
 
-    QAction* exit_action = new QAction("E&xit", this);
-    exit_action->setShortcut(QKeySequence::Quit);
-    connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
-    file_menu->addAction(exit_action);
+        QAction* exit_action = new QAction("E&xit", this);
+        exit_action->setShortcut(QKeySequence::Quit);
+        connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
+        file_menu->addAction(exit_action);
 
-    QMenu* view_menu = menuBar()->addMenu("&View");
-    view_menu->addAction(properties_dock->toggleViewAction());
-    view_menu->addAction(scene_dock->toggleViewAction());
-}
+        QMenu* view_menu = menuBar()->addMenu("&View");
+        view_menu->addAction(properties_panel->toggleViewAction());
+        view_menu->addAction(scene_dock->toggleViewAction());
+    }
 
 } // namespace ollygon

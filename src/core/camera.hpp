@@ -1,34 +1,35 @@
 #pragma once
 #include "vec3.hpp"
 #include "mat4.hpp"
-
+#include "camera_controller.hpp"
 
 namespace ollygon {
 
 class Camera {
 public:
+    // defaults.  transform is handled by its scene transform externally.
     Camera()
-        : position (0,4,5)
-        , target (0,0,0)
-        , up (0,1,0)
-        , fov_y(45.0f)
+        : fov_y(45.0f)
         , aspect(4.0f / 3.0f)
         , near_plane(0.1f)
         , far_plane(100.0f)
-    {}
+    {
+    }
 
     Vec3 get_pos() const {
-        return position;
+        return controller.get_position();
     }
+
     Vec3 get_target() const {
-        return target;
+        return controller.get_target();
     }
+
     Vec3 get_up() const {
-        return up;
+        return controller.get_up();
     }
 
     Mat4 get_view_matrix() const {
-        return Mat4::look_at(position, target, up);
+        return Mat4::look_at(get_pos(), get_target(), get_up());
     }
 
     Mat4 get_projection_matrix() const {
@@ -37,10 +38,11 @@ public:
 
     void set_aspect(float new_aspect) { aspect = new_aspect; }
 
+    CameraController* get_controller() { return &controller; }
+    const CameraController* get_controller() const { return &controller; }
+
 private:
-    Vec3 position;
-    Vec3 target;
-    Vec3 up;
+    CameraController controller;
 
     float fov_y;
     float aspect;

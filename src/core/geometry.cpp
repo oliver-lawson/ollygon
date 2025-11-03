@@ -1,0 +1,242 @@
+#include "geometry.hpp"
+#include <cmath>
+#include <algorithm>
+
+namespace ollygon{
+// == Sphere ==
+
+void SphereGeometry::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const
+{
+    const int segments = 32;
+    const int rings = 16;
+
+    size_t vertex_start = verts.size() / 6;
+
+    // generate verts
+    for (int ring = 0; ring <= rings; ++ring) {
+        float phi = 3.14159f * float(ring) / float(rings);
+        for (int seg = 0; seg <= segments; ++seg) {
+            float theta = 2.0f * 3.14159f * float(seg) / float(segments);
+
+            float x = std::sin(phi) * std::cos(theta);
+            float y = std::cos(phi);
+            float z = std::sin(phi) * std::sin(theta);
+
+            // position
+            verts.push_back(x * radius);
+            verts.push_back(y * radius);
+            verts.push_back(z * radius);
+
+            // normal (normalised position for unit sphere)
+            verts.push_back(x);
+            verts.push_back(y);
+            verts.push_back(z);
+        }
+    }
+
+    // generate indices
+    for (int ring = 0; ring < rings; ++ring) {
+        for (int seg = 0; seg < segments; ++seg) {
+            unsigned int current = vertex_start + ring * (segments + 1) + seg;
+            unsigned int next = current + segments + 1;
+
+            indices.push_back(current);
+            indices.push_back(next);
+            indices.push_back(current + 1);
+
+            indices.push_back(current + 1);
+            indices.push_back(next);
+            indices.push_back(next + 1);
+        }
+    }
+}
+
+bool SphereGeometry::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir, float& t_out, Vec3& normal_out) const {
+    // sphere is at origin in local space (transform applied externally)
+    Vec3 oc = ray_origin;
+    float a = Vec3::dot(ray_dir, ray_dir);
+    float b = 2.0f * Vec3::dot(oc, ray_dir);
+    float c = Vec3::dot(oc, oc) - radius * radius;
+    float discriminant = b * b - 4.0f * a * c;
+
+    if (discriminant < 0.0f) return false;
+
+    float t = (-b - std::sqrtf(discriminant)) / (2.0f * a);
+    if (t < 0.001f) {  // avoid self-intersection
+        t = (-b + std::sqrtf(discriminant)) / (2.0f * a);
+        if (t < 0.001f) {
+            return false;
+        }
+    }
+
+    t_out = t;
+    Vec3 hit_point = ray_origin + ray_dir * t;
+    normal_out = (hit_point / radius).normalised();
+    return true;
+}
+
+// == Quad ==
+void QuadGeometry::generate_mesh(
+    std::vector<float>& verts,
+    std::vector<unsigned int>& indices
+) const {
+    Vec3 normal = Vec3::cross(u, v).normalised();
+
+    size_t vertex_start = verts.size() / 6;
+
+    Vec3 corners[4] = {
+        corner,
+        corner + u,
+        corner + u + v,
+        corner + v
+    };
+
+    for (int i = 0; i < 4; ++i) {
+        verts.push_back(corners[i].x);
+        verts.push_back(corners[i].y);
+        verts.push_back(corners[i].z);
+        verts.push_back(normal.x);
+        verts.push_back(normal.y);
+        verts.push_back(normal.z);
+    }
+
+    // two tris
+    indices.push_back(vertex_start + 0);
+    indices.push_back(vertex_start + 1);
+    indices.push_back(vertex_start + 2);
+
+    indices.push_back(vertex_start + 0);
+    indices.push_back(vertex_start + 2);
+    indices.push_back(vertex_start + 3);
+}
+
+bool QuadGeometry::intersect_ray(
+    const Vec3& ray_origin,
+    const Vec3& ray_dir,
+    float& t_out,
+    Vec3& normal_out
+) const {
+    Vec3 n = Vec3::cross(u, v).normalised();
+    float denom = Vec3::dot(n, ray_dir);
+
+    if (std::abs(denom) < 1e-6f) return false;  // parallel
+
+    Vec3 p0 = ray_origin - corner;
+    float t = -Vec3::dot(p0, n) / denom;
+
+    if (t < 0.001f) return false;
+
+    Vec3 hit_point = ray_origin + ray_dir * t;
+    Vec3 d = hit_point - corner;
+
+    // check if inside quad using parametric coords
+    float u_len_sq = Vec3::dot(u, u);
+    float v_len_sq = Vec3::dot(v, v);
+    float u_param = Vec3::dot(d, u) / u_len_sq;
+    float v_param = Vec3::dot(d, v) / v_len_sq;
+
+    if (u_param < 0.0f || u_param > 1.0f || v_param < 0.0f || v_param > 1.0f) {
+        return false;
+    }
+
+    t_out = t;
+    normal_out = n;
+    return true;
+}
+
+// == Box ==
+void BoxGeometry::generate_mesh(
+    std::vector<float>& verts,
+    std::vector<unsigned int>& indices
+) const {
+    size_t vertex_start = verts.size() / 6;
+
+    Vec3 corners[8] = {
+        Vec3(min.x, min.y, min.z),
+        Vec3(max.x, min.y, min.z),
+        Vec3(max.x, max.y, min.z),
+        Vec3(min.x, max.y, min.z),
+        Vec3(min.x, min.y, max.z),
+        Vec3(max.x, min.y, max.z),
+        Vec3(max.x, max.y, max.z),
+        Vec3(min.x, max.y, max.z)
+    };
+
+    struct Face {
+        int indices[4];
+        Vec3 normal;
+    };
+
+    Face faces[6] = {
+        {{0, 1, 2, 3}, Vec3(0, 0, -1)},  // front
+        {{5, 4, 7, 6}, Vec3(0, 0, 1)},   // back
+        {{4, 0, 3, 7}, Vec3(-1, 0, 0)},  // left
+        {{1, 5, 6, 2}, Vec3(1, 0, 0)},   // right
+        {{4, 5, 1, 0}, Vec3(0, -1, 0)},  // bottom
+        {{3, 2, 6, 7}, Vec3(0, 1, 0)}    // top
+    };
+
+    for (int f = 0; f < 6; ++f) {
+        for (int i = 0; i < 4; ++i) {
+            Vec3 corner = corners[faces[f].indices[i]];
+            verts.push_back(corner.x);
+            verts.push_back(corner.y);
+            verts.push_back(corner.z);
+            verts.push_back(faces[f].normal.x);
+            verts.push_back(faces[f].normal.y);
+            verts.push_back(faces[f].normal.z);
+        }
+
+        unsigned int base = vertex_start + f * 4;
+        indices.push_back(base + 0);
+        indices.push_back(base + 1);
+        indices.push_back(base + 2);
+        indices.push_back(base + 0);
+        indices.push_back(base + 2);
+        indices.push_back(base + 3);
+    }
+}
+
+bool BoxGeometry::intersect_ray(
+    const Vec3& ray_origin,
+    const Vec3& ray_dir,
+    float& t_out,
+    Vec3& normal_out
+) const {
+    // TEMP
+    // fairly horrible for even an AA box
+    // slab method
+    Vec3 inv_dir = Vec3(
+        std::abs(ray_dir.x) > 1e-6f ? 1.0f / ray_dir.x : 1e6f,
+        std::abs(ray_dir.y) > 1e-6f ? 1.0f / ray_dir.y : 1e6f,
+        std::abs(ray_dir.z) > 1e-6f ? 1.0f / ray_dir.z : 1e6f
+    );
+
+    float t1 = (min.x - ray_origin.x) * inv_dir.x;
+    float t2 = (max.x - ray_origin.x) * inv_dir.x;
+    float t3 = (min.y - ray_origin.y) * inv_dir.y;
+    float t4 = (max.y - ray_origin.y) * inv_dir.y;
+    float t5 = (min.z - ray_origin.z) * inv_dir.z;
+    float t6 = (max.z - ray_origin.z) * inv_dir.z;
+
+    float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
+    float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
+
+    if (tmax < 0.0f || tmin > tmax || tmin < 0.001f) {
+        return false;
+    }
+
+    t_out = tmin;
+
+    // determine which face was hit for normal
+    const float epsilon = 0.0001f;
+    if (std::abs(tmin - t1) < epsilon) normal_out = Vec3(-1, 0, 0);
+    else if (std::abs(tmin - t2) < epsilon) normal_out = Vec3(1, 0, 0);
+    else if (std::abs(tmin - t3) < epsilon) normal_out = Vec3(0, -1, 0);
+    else if (std::abs(tmin - t4) < epsilon) normal_out = Vec3(0, 1, 0);
+    else if (std::abs(tmin - t5) < epsilon) normal_out = Vec3(0, 0, -1);
+    else normal_out = Vec3(0, 0, 1);
+
+    return true;
+}
+} // namespace ollygon

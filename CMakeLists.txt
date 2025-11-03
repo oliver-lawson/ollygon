@@ -43,7 +43,7 @@ target_link_libraries(ollygon PRIVATE
 # platform-specific
 if(WIN32)
     set_target_properties(ollygon PROPERTIES
-        WIN32_EXECUTABLE ON
+        WIN32_EXECUTABLE $<$<CONFIG:Release>:ON> # launch console only on win Debug builds
     )
 endif()
 
