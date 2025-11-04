@@ -4,7 +4,7 @@
 
 
 ### Current status:
-- It can't do anything. displays a sphere and just about runs.
+- Qt hierarchy/properties panel & a cornell box in OpenGL
 
 ### Goals:
 Personal project with the aim of learning more about:
