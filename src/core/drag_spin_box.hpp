@@ -6,6 +6,8 @@
 
 namespace ollygon {
 
+    enum class SpinBoxLetter { None, R,G,B,X,Y,Z };
+
 class DragSpinBox : public QWidget {
     Q_OBJECT
 
@@ -18,6 +20,9 @@ public:
     void set_range(float min, float max);
     void set_speed(float speed) { drag_speed = speed; }  // units per pixel
     void set_precision(int decimals) { decimal_places = decimals; }
+
+    void set_letter(SpinBoxLetter new_letter) { letter = new_letter; }
+
     
 signals:
     void value_changed(float new_value);
@@ -51,6 +56,8 @@ private:
     
     QLineEdit* text_edit;
     bool in_edit_mode;
+
+    SpinBoxLetter letter;
 };
 
 } // namespace ollygon
