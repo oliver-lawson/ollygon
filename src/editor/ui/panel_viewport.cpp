@@ -133,6 +133,7 @@ namespace ollygon {
 
         // walk scene and accumulate all geometry, tracking ranges
         std::function<void(SceneNode*)> collect_geometry = [&](SceneNode* node) {
+            if (!node->visible) return;
             if (node->geometry && (node->node_type == NodeType::Mesh || node->node_type == NodeType::Light)) {
                 unsigned int index_start = scene_indices.size();
                 unsigned int vert_start = scene_vertices.size() / 6;
@@ -224,7 +225,7 @@ namespace ollygon {
     }
 
     void PanelViewport::render_node(SceneNode* node) {
-        if (!node) return;
+        if (!node || !node->visible) return;
 
         bool is_selected = selection_handler && (selection_handler->get_selected() == node);
 

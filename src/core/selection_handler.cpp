@@ -38,6 +38,8 @@ bool SelectionHandler::raycast_select(Scene* scene, const Vec3& ray_origin, cons
 bool SelectionHandler::raycast_node(SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, float& closest_t, SceneNode*& hit_node) {
     bool hit_anything = false;
 
+    if (node->locked || !node->visible) return false;
+
     // test geometry if present
     if (node->geometry && node->node_type == NodeType::Mesh) {
         // transform ray to local space

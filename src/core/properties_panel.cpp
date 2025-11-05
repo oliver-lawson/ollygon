@@ -2,6 +2,7 @@
 #include <QHBoxLayout>
 #include <QMainWindow>
 #include <QGroupBox>
+#include <QCheckBox>
 
 namespace ollygon {
 
@@ -53,6 +54,27 @@ void PropertiesPanel::rebuild_ui(SceneNode* node) {
     QLabel* name_label = new QLabel(QString("<b>%1</b>").arg(QString::fromStdString(node->name)));
     name_label->setStyleSheet("font-size: 12pt;");
     main_layout->addWidget(name_label);
+
+    // visible/locked checkboxes
+    QCheckBox* visible_check = new QCheckBox("Visible");
+    visible_check->setChecked(node->visible);
+    connect(visible_check, &QCheckBox::toggled, [node, this](bool checked) {
+        node->visible = checked;
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    });
+    main_layout->addWidget(visible_check);
+
+
+    QCheckBox* lock_check = new QCheckBox("Locked");
+    lock_check->setChecked(node->locked);
+    connect(lock_check, &QCheckBox::toggled, [node](bool checked) {
+        node->locked = checked;
+    });
+    main_layout->addWidget(lock_check);
 
     // type-specific controls
     switch (node->node_type) {

@@ -50,6 +50,8 @@ public:
     std::string name;
     Transform transform;
     NodeType node_type;
+    bool visible;
+    bool locked;
 
     // geo for mesh nodes
     std::unique_ptr<Geometry> geometry;
@@ -66,6 +68,8 @@ public:
         , node_type(NodeType::Empty)
         , albedo(0.7f, 0.7f, 0.7f)
         , parent(nullptr)
+        , visible(true)
+        , locked(false)
     {}
 
     //helper to add child & set parent pointer
