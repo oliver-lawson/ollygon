@@ -13,7 +13,7 @@ namespace ollygon {
         , viewport(nullptr)
         , properties_panel(nullptr)
         , scene_dock(nullptr)
-        , scene_tree(nullptr)
+        , scene_hierarchy(nullptr)
     {
         setWindowTitle("ollygon");
         resize(1280, 720);
@@ -144,56 +144,16 @@ namespace ollygon {
         scene_dock = new QDockWidget("Scene", this);
         scene_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
-        scene_tree = new QTreeWidget();
-        scene_tree->setHeaderLabel("Scene Hierarchy");
+        scene_hierarchy = new PanelSceneHierarchy();
+        scene_hierarchy->set_scene(&scene);
+        scene_hierarchy->set_selection_handler(&selection_handler);
 
-        // connect tree selection to selection handler
-        connect(scene_tree, &QTreeWidget::itemClicked, [this](QTreeWidgetItem* item, int column) {
-            SceneNode* node = static_cast<SceneNode*>(item->data(0, Qt::UserRole).value<void*>());
-            selection_handler.set_selected(node);
-            });
+        connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, [this]() {
+            viewport->update();
+        });
 
-        populate_scene_tree();
-
-        scene_tree->expandAll();
-        scene_dock->setWidget(scene_tree);
+        scene_dock->setWidget(scene_hierarchy);
         addDockWidget(Qt::LeftDockWidgetArea, scene_dock);
-    }
-
-    void MainWindow::populate_scene_tree() {
-        scene_tree->clear();
-
-        std::function<QTreeWidgetItem* (SceneNode*, QTreeWidgetItem*)> add_node =
-            [&](SceneNode* node, QTreeWidgetItem* parent) -> QTreeWidgetItem* {
-            QTreeWidgetItem* item = parent
-                ? new QTreeWidgetItem(parent)
-                : new QTreeWidgetItem(scene_tree);
-
-            QString display_name = QString::fromStdString(node->name);
-
-            // add type indicator
-            switch (node->node_type) {
-            case NodeType::Mesh:
-                display_name += " [Mesh]";
-                break;
-            case NodeType::Light:
-                display_name += " [Light]";
-                break;
-            case NodeType::Empty:
-                break;
-            }
-
-            item->setText(0, display_name);
-            item->setData(0, Qt::UserRole, QVariant::fromValue(static_cast<void*>(node)));
-
-            for (auto& child : node->children) {
-                add_node(child.get(), item);
-            }
-
-            return item;
-            };
-
-        add_node(scene.get_root(), nullptr);
     }
 
     void MainWindow::create_menus() {

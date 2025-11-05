@@ -5,11 +5,13 @@
 #include <QTreeWidget>
 #include "core/scene.hpp"
 #include "core/selection_handler.hpp"
+#include "panel_scene_hierarchy.hpp"
 
 namespace ollygon {
 
 class PanelViewport;
 class PropertiesPanel;
+class PanelSceneHierarchy;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -23,7 +25,6 @@ private:
     void setup_cornell_box();
     void create_dock_widgets();
     void create_menus();
-    void populate_scene_tree();
 
     Scene scene;
     SelectionHandler selection_handler;
@@ -31,7 +32,7 @@ private:
     PanelViewport* viewport;
     PropertiesPanel* properties_panel;
     QDockWidget* scene_dock;
-    QTreeWidget* scene_tree;
+    PanelSceneHierarchy* scene_hierarchy;
 };
 
 } // namespace ollygon

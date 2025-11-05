@@ -3,6 +3,7 @@
 #include <QWheelEvent>
 #include <cmath>
 #include <iostream>
+#include "panel_scene_hierarchy.hpp"
 
 namespace ollygon {
 
