@@ -26,22 +26,6 @@ file(GLOB_RECURSE HEADERS
 # executable
 add_executable(ollygon ${SOURCES} ${HEADERS})
 
-# Visual Studio - set as startup project
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ollygon)
-# enable hot reload for MSVC
-if(MSVC)
-    target_compile_options(ollygon PRIVATE
-        $<$<CONFIG:Debug>:/ZI>      # edit and continue debug info
-        $<$<CONFIG:Debug>:/Ob0>     # disable inlining for debug
-    )
-    target_link_options(ollygon PRIVATE
-        $<$<CONFIG:Debug>:/INCREMENTAL>  # incremental linking for faster rebuilds
-    )
-    set_target_properties(ollygon PROPERTIES
-        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-    )
-endif()
-
 # include directories
 target_include_directories(ollygon PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
@@ -56,16 +40,43 @@ target_link_libraries(ollygon PRIVATE
     OpenGL::GL
 )
 
-# platform-specific
-if(WIN32)
-    set_target_properties(ollygon PROPERTIES
-        WIN32_EXECUTABLE $<$<CONFIG:Release>:ON> # launch console only on win Debug builds
-    )
-endif()
-
 # copy assets to build directory
 add_custom_command(TARGET ollygon POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/assets
         $<TARGET_FILE_DIR:ollygon>/assets
 )
+
+# platform-specific settings
+if(WIN32)
+    set_target_properties(ollygon PROPERTIES
+        WIN32_EXECUTABLE $<$<CONFIG:Release>:ON>  # console window only in debug builds
+    )
+endif()
+
+# Visual Studio specific settings
+if(MSVC)
+    # set as startup project
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ollygon)
+    
+    # hot reload support
+    target_compile_options(ollygon PRIVATE
+        $<$<CONFIG:Debug>:/ZI>      # edit and continue debug info
+        $<$<CONFIG:Debug>:/Ob0>     # disable inlining for debug
+    )
+    target_link_options(ollygon PRIVATE
+        $<$<CONFIG:Debug>:/INCREMENTAL>  # incremental linking
+    )
+    
+    # debugger working directory
+    set_target_properties(ollygon PROPERTIES
+        VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    
+    # hide MOC autogen files from solution explorer
+    source_group("CMake Autogen" REGULAR_EXPRESSION ".*_autogen/.*")
+    set_source_files_properties(
+        ${CMAKE_CURRENT_BINARY_DIR}/ollygon_autogen/mocs_compilation.cpp
+        PROPERTIES HEADER_FILE_ONLY TRUE
+    )
+endif()
