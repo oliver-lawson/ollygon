@@ -23,9 +23,6 @@ signals:
     void node_visibility_toggled(SceneNode* node);
     void node_locked_toggled(SceneNode* node);
 
-protected:
-    void drawRow(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const override;
-
 private slots:
     void on_item_clicked(QTreeWidgetItem* item, int column);
 

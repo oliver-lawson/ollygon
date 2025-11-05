@@ -25,6 +25,11 @@ SceneHierarchyTree::SceneHierarchyTree(QWidget* parent)
     header()->setSectionResizeMode(Column::Locked, QHeaderView::Fixed);
     setColumnWidth(Column::Visible, 30);
     setColumnWidth(Column::Locked, 30);
+
+    header()->setContextMenuPolicy(Qt::CustomContextMenu); //TODO
+    
+    setAlternatingRowColors(true);
+    setIndentation(15);
     
     connect(this, &QTreeWidget::itemClicked, this, &SceneHierarchyTree::on_item_clicked);
 }
@@ -79,23 +84,26 @@ void SceneHierarchyTree::update_item_display(QTreeWidgetItem* item, SceneNode* n
     item->setForeground(Column::Name, text_colour);
 }
 
-void ollygon::SceneHierarchyTree::drawRow(QPainter* painter, const QStyleOptionViewItem& option, const QModelIndex& index) const
-{
-    if (index.row() % 2 == 1)
-    {
-        QColor bg = palette().base().color();
-        QColor overlay(0, 0, 0, 50);
-
-        painter->fillRect(option.rect, bg);
-        painter->fillRect(option.rect, overlay);
-    }
-
-    QTreeWidget::drawRow(painter, option, index);
-}
-
 void SceneHierarchyTree::on_item_clicked(QTreeWidgetItem* item, int column) {
     SceneNode* node = get_node_from_item(item);
     if (!node) return;
+
+    if (column == Column::Visible) {
+        node->visible = !node->visible;
+        update_item_display(item, node);
+        emit node_visibility_toggled(node);
+    }
+    else if (column == Column::Locked) {
+        node->locked = !node->locked;
+        update_item_display(item, node);
+        emit node_locked_toggled(node);
+    }
+    else if (column == Column::Name) {
+        // select!
+        if (selection_handler && node->name != "Root" && !node->locked) {
+            selection_handler->set_selected(node);
+        }
+    }
 }
 
 // == Panel ==
