@@ -23,6 +23,9 @@ signals:
     void node_visibility_toggled(SceneNode* node);
     void node_locked_toggled(SceneNode* node);
 
+public slots:
+    void refresh_display();
+
 private slots:
     void on_item_clicked(QTreeWidgetItem* item, int column);
 
@@ -44,12 +47,13 @@ public:
     void set_selection_handler(SelectionHandler* selectionhandler);
     void rebuild_tree();
 
+    SceneHierarchyTree* tree; // public so we can call a cheaper refresh_display on it from main_window
+
 signals:
     void scene_modified();
 
 private:
     Scene* scene;
-    SceneHierarchyTree* tree;
 };
 
 } // namespace ollygon

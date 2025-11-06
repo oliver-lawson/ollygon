@@ -76,8 +76,14 @@ class PropertiesPanel : public QDockWidget {
 public:
     explicit PropertiesPanel(SelectionHandler* selection, QWidget* parent = nullptr);
 
+public slots:
+    void refresh_from_node();
+
 private slots:
     void on_selection_changed(SceneNode* node);
+
+signals:
+    void properties_changed(); // visible/locked changed
 
 private:
     void rebuild_ui(SceneNode* node);

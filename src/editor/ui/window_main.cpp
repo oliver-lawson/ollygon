@@ -148,6 +148,12 @@ namespace ollygon {
         scene_hierarchy->set_scene(&scene);
         scene_hierarchy->set_selection_handler(&selection_handler);
 
+        //// connect us up to signals from them
+        // visible/locked toggled on properties?:
+        connect(properties_panel, &PropertiesPanel::properties_changed, scene_hierarchy->tree, &SceneHierarchyTree::refresh_display);
+        // scene modified from hierarchy and needs to update over onto properties?:
+        connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, properties_panel, &PropertiesPanel::refresh_from_node);
+        // visible/locked toggled on hierarchy?:
         connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, [this]() {
             viewport->update();
         });

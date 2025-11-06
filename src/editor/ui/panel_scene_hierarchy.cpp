@@ -84,6 +84,27 @@ void SceneHierarchyTree::update_item_display(QTreeWidgetItem* item, SceneNode* n
     item->setForeground(Column::Name, text_colour);
 }
 
+
+// slots
+void SceneHierarchyTree::refresh_display() {
+    // walk all items and update
+    // TODO track node mappings and update granularly
+    // TODO centralise to newly selected node?
+    std::function<void(QTreeWidgetItem*)> refresh_item = [&](QTreeWidgetItem* item) {
+        SceneNode* node = get_node_from_item(item);
+        if (node) {
+            update_item_display(item, node);
+        }
+        for (int i = 0; i < item->childCount(); i++) {
+            refresh_item(item->child(i));
+        }
+    };
+
+    for (int i = 0; i < topLevelItemCount(); ++i) {
+        refresh_item(topLevelItem(i));
+    }
+}
+
 void SceneHierarchyTree::on_item_clicked(QTreeWidgetItem* item, int column) {
     SceneNode* node = get_node_from_item(item);
     if (!node) return;
@@ -130,6 +151,11 @@ void PanelSceneHierarchy::set_scene(Scene* new_scene) {
 
 void PanelSceneHierarchy::set_selection_handler(SelectionHandler* new_handler) {
     tree->set_selection_handler(new_handler);
+
+    // listen to selection changes
+    if (new_handler) {
+        connect(new_handler, &SelectionHandler::selection_changed, tree, &SceneHierarchyTree::refresh_display);
+    }
 }
 
 void PanelSceneHierarchy::rebuild_tree() {

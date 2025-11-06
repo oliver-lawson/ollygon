@@ -31,6 +31,11 @@ PropertiesPanel::PropertiesPanel(SelectionHandler* selection, QWidget* parent)
     main_layout->addStretch();
 }
 
+void PropertiesPanel::refresh_from_node() {
+    if (!current_node) return;
+    rebuild_ui(current_node); // could be more granular later, but our ui is very simple for now
+}
+
 void PropertiesPanel::on_selection_changed(SceneNode* node) {
     current_node = node;
     rebuild_ui(node);
@@ -65,14 +70,18 @@ void PropertiesPanel::rebuild_ui(SceneNode* node) {
                 viewport->update();
             }
         }
+        emit properties_changed();
     });
     main_layout->addWidget(visible_check);
 
 
     QCheckBox* lock_check = new QCheckBox("Locked");
     lock_check->setChecked(node->locked);
-    connect(lock_check, &QCheckBox::toggled, [node](bool checked) {
+    connect(lock_check, &QCheckBox::toggled, [node, this](bool checked) {
         node->locked = checked;
+        /// not sure if we'll need to emit this just yet?
+        // have added "this" to lambda capture, clean that if we remove this
+        emit properties_changed();
     });
     main_layout->addWidget(lock_check);
 
