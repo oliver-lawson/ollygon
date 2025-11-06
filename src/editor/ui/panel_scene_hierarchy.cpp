@@ -1,4 +1,5 @@
 ﻿#include "panel_scene_hierarchy.hpp"
+
 #include <QPainter>
 
 namespace ollygon {
@@ -27,10 +28,20 @@ SceneHierarchyTree::SceneHierarchyTree(QWidget* parent)
     setColumnWidth(Column::Locked, 30);
 
     header()->setContextMenuPolicy(Qt::CustomContextMenu); //TODO
-    
-    setAlternatingRowColors(true);
     setIndentation(15);
     
+    // disable Qt's built-in rounded selection bar.
+    // with AlternatingRowColors=false it's subtle but a rounded
+    // bar is visible below other selected rows
+    // with AlternatingRowColors true, it disables the rounded bar on hover, which
+    // is much nicer. Alternating.. seems to overrule something and we get the
+    // rounded bar forced on us on the active element, but it looks OK
+    setSelectionMode(QAbstractItemView::NoSelection);
+    // I can't seem to figure how to paint behind the text yet, across the
+    // entire rows, so for now lets just do this and use the custom
+    // paint for the selection highlights (which sadly have to render
+    // over the text)
+    setAlternatingRowColors(true);
     connect(this, &QTreeWidget::itemClicked, this, &SceneHierarchyTree::on_item_clicked);
 }
 
@@ -47,6 +58,50 @@ void SceneHierarchyTree::set_selection_handler(SelectionHandler* new_handler) {
     selection_handler = new_handler;
 }
 
+// Qt's native Windows style seems to  aggressively paint its own bg in drawRow(), 
+// overwriting any custom painting we do beforehand? tried many things and couldn't
+// get shot of it.  the best solution I landed upon is to paint in paintEvent()
+// AFTER the base class finishes, so our overlays sit on top. We use 
+// semi-transparent colours so text remains visible underneath.
+// TODO: maybe replace this whole thing with qml...
+void SceneHierarchyTree::paintEvent(QPaintEvent* event) {
+    // let qt paint defaults
+    QTreeWidget::paintEvent(event);
+
+    // paint our custom overlay on top
+    QPainter painter(viewport());
+
+    for (int i = 0; i < topLevelItemCount(); ++i) {
+        paint_item_recursive(topLevelItem(i), &painter);
+    }
+}
+
+void SceneHierarchyTree::paint_item_recursive(QTreeWidgetItem* item, QPainter* painter) const {
+    if (!item) return;
+
+    QModelIndex index = indexFromItem(item, 0);
+    if (!index.isValid()) return;
+
+    QRect item_rect = visualRect(index);
+    if (!item_rect.isValid()) return;
+
+    // extend to full width
+    item_rect.setLeft(0);
+    item_rect.setRight(viewport()->width());
+
+    // draw selection
+    SceneNode* node = get_node_from_item(item);
+    if (node && selection_handler && selection_handler->get_selected() == node) {
+        QColor selection_colour(255, 140, 0, 50);
+        painter->fillRect(item_rect, selection_colour);
+    }
+
+    // recurse to children
+    for (int i = 0; i < item->childCount(); ++i) {
+        paint_item_recursive(item->child(i), painter);
+    }
+}
+
 void SceneHierarchyTree::add_node_recursive(SceneNode* node, QTreeWidgetItem* parent)
 {
     QTreeWidgetItem* item = parent ? new QTreeWidgetItem(parent) : new QTreeWidgetItem(this);
@@ -59,7 +114,7 @@ void SceneHierarchyTree::add_node_recursive(SceneNode* node, QTreeWidgetItem* pa
     }
 }
 
-SceneNode* SceneHierarchyTree::get_node_from_item(QTreeWidgetItem* item)
+SceneNode* SceneHierarchyTree::get_node_from_item(QTreeWidgetItem* item) const
 {
     if (!item) return nullptr;
     return static_cast<SceneNode*>(item->data(Column::Name, Qt::UserRole).value<void*>());
@@ -98,11 +153,14 @@ void SceneHierarchyTree::refresh_display() {
         for (int i = 0; i < item->childCount(); i++) {
             refresh_item(item->child(i));
         }
-    };
+        };
 
     for (int i = 0; i < topLevelItemCount(); ++i) {
         refresh_item(topLevelItem(i));
     }
+
+    // force repaint so we can see previously selected rows get deselected too
+    viewport()->update();
 }
 
 void SceneHierarchyTree::on_item_clicked(QTreeWidgetItem* item, int column) {

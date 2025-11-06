@@ -23,6 +23,10 @@ signals:
     void node_visibility_toggled(SceneNode* node);
     void node_locked_toggled(SceneNode* node);
 
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
+
 public slots:
     void refresh_display();
 
@@ -31,12 +35,15 @@ private slots:
 
 private:
     void add_node_recursive(SceneNode* node, QTreeWidgetItem* parent);
-    SceneNode* get_node_from_item(QTreeWidgetItem* item);
+    SceneNode* get_node_from_item(QTreeWidgetItem* item) const;
     void update_item_display(QTreeWidgetItem* item, SceneNode* node);
+    void paint_item_recursive(QTreeWidgetItem* item, QPainter* painter) const;
 
     SelectionHandler* selection_handler;
 };
 
+// TODO - pretty empty for now, widget wrapper that will make more sense
+// when we have new item buttons, fitler search etc
 class PanelSceneHierarchy : public QWidget {
     Q_OBJECT
 
