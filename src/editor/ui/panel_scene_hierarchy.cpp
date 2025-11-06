@@ -29,7 +29,7 @@ SceneHierarchyTree::SceneHierarchyTree(QWidget* parent)
 
     header()->setContextMenuPolicy(Qt::CustomContextMenu); //TODO
     setIndentation(15);
-    
+
     // disable Qt's built-in rounded selection bar.
     // with AlternatingRowColors=false it's subtle but a rounded
     // bar is visible below other selected rows
@@ -100,6 +100,58 @@ void SceneHierarchyTree::paint_item_recursive(QTreeWidgetItem* item, QPainter* p
     for (int i = 0; i < item->childCount(); ++i) {
         paint_item_recursive(item->child(i), painter);
     }
+}
+
+void SceneHierarchyTree::filter_items(const QString& filter_text)
+{
+    if (filter_text.isEmpty()) {
+        // show everything
+        for (int i = 0; i < topLevelItemCount(); i++) {
+            QTreeWidgetItem* item = topLevelItem(i);
+            item->setHidden(false);
+            filter_item_recursive(item, "");
+        }
+        expandAll();
+    }
+    else {
+        // filter and show matching items + their parents
+        for (int i = 0; i < topLevelItemCount(); i++)
+        {
+            QTreeWidgetItem* item = topLevelItem(i);
+            bool visible = filter_item_recursive(item, filter_text);
+            item->setHidden(!visible);
+        }
+    }
+}
+
+bool SceneHierarchyTree::filter_item_recursive(QTreeWidgetItem* item, const QString& filter_text)
+{
+    if (!item) return false;
+
+    // show all
+    if (filter_text.isEmpty()) {
+        item->setHidden(false);
+        for (int i = 0; i < item->childCount(); i++) {
+            filter_item_recursive(item->child(i), filter_text);
+        }
+        return true;
+    }
+
+    // check if this item matches
+    bool matches = item->text(Column::Name).contains(filter_text, Qt::CaseInsensitive);
+
+    // check if any children match
+    bool any_child_visible = false;
+    for (int i = 0; i < item->childCount(); i++) {
+        if (filter_item_recursive(item->child(i), filter_text)) {
+            any_child_visible = true;
+        }
+    }
+
+    // show this item if matches OR any child is visible
+    bool should_show = matches || any_child_visible;
+    item->setHidden(!should_show);
+    return should_show;
 }
 
 void SceneHierarchyTree::add_node_recursive(SceneNode* node, QTreeWidgetItem* parent)
@@ -193,13 +245,30 @@ PanelSceneHierarchy::PanelSceneHierarchy(QWidget* parent)
 {
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(2);
+
+    // search filter
+    filter_edit = new QLineEdit();
+    filter_edit->setPlaceholderText("Search...");
+    filter_edit->setClearButtonEnabled(true);
+    layout->addWidget(filter_edit);
+
+    //tree
 
     tree = new SceneHierarchyTree();
     layout->addWidget(tree);
 
+    // connect tree/filter
+    connect(filter_edit, &QLineEdit::textChanged, this, &PanelSceneHierarchy::on_filter_changed);
+
     // connect any tree signals to single "modified" signal
     connect(tree, &SceneHierarchyTree::node_visibility_toggled, this, &PanelSceneHierarchy::scene_modified);
     connect(tree, &SceneHierarchyTree::node_locked_toggled, this, &PanelSceneHierarchy::scene_modified);
+}
+
+void PanelSceneHierarchy::on_filter_changed(const QString& new_text)
+{
+    tree->filter_items(new_text);
 }
 
 void PanelSceneHierarchy::set_scene(Scene* new_scene) {

@@ -5,6 +5,7 @@
 #include <QTreeWidgetItem>
 #include <QHeaderView>
 #include <QVBoxLayout>
+#include <QLineEdit>
 #include "core/scene.hpp"
 #include "core/selection_handler.hpp"
 
@@ -18,6 +19,7 @@ public:
 
     void populate_from_scene(Scene* scene);
     void set_selection_handler(SelectionHandler* new_handler);
+    void filter_items(const QString& filter_text);
 
 signals:
     void node_visibility_toggled(SceneNode* node);
@@ -38,6 +40,7 @@ private:
     SceneNode* get_node_from_item(QTreeWidgetItem* item) const;
     void update_item_display(QTreeWidgetItem* item, SceneNode* node);
     void paint_item_recursive(QTreeWidgetItem* item, QPainter* painter) const;
+    bool filter_item_recursive(QTreeWidgetItem* item, const QString& filter_text);
 
     SelectionHandler* selection_handler;
 };
@@ -59,8 +62,12 @@ public:
 signals:
     void scene_modified();
 
+private slots:
+    void on_filter_changed(const QString& new_text);
+
 private:
     Scene* scene;
+    QLineEdit* filter_edit;
 };
 
 } // namespace ollygon
