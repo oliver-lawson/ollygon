@@ -136,6 +136,25 @@ namespace ollygon {
         sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
         sphere->albedo = Colour(0.9f, 0.9f, 0.9f);
         scene.get_root()->add_child(std::move(sphere));
+
+        auto test_tri = std::make_unique<SceneNode>("Triangle (mesh)");
+        test_tri->node_type = NodeType::Mesh;
+        test_tri->geo = std::make_unique<Geo>();
+
+        Vec3 corners[3] = {
+            Vec3( 1.4f,  0.0f,  0.4f),
+            Vec3(-0.1f, -0.1f,  0.1f),
+            Vec3( 0.8f,  1.3f, -0.2f)
+        };
+        Vec3 normal = Vec3(0, 1.0f, 0);
+
+        for (int i = 0; i < 3; i++) {
+            test_tri->geo->add_vertex(corners[i], normal);
+        }
+        test_tri->geo->add_tri(0, 1, 2);
+        test_tri->transform.position = Vec3(1.5f, 3.5f, -3.5f);
+        scene.get_root()->add_child(std::move(test_tri));
+
     }
 
     void MainWindow::create_dock_widgets() {

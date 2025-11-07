@@ -55,6 +55,15 @@ public:
     size_t tri_count() const { return indices.size() / 3; } // TEMP
     bool is_empty() const { return verts.empty() || indices.empty(); }
 
+    //TODO bvh
+    bool intersect_ray(
+        const Vec3& ray_origin,
+        const Vec3& ray_dir,
+        float& t_out,
+        Vec3& normal_out,
+        uint32_t& tri_index_out
+    ) const;
+
     void clear() {
         verts.clear();
         indices.clear();

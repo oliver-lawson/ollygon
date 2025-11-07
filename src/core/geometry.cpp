@@ -1,18 +1,108 @@
 #include "geometry.hpp"
 #include <cmath>
+#include <limits>
 #include <algorithm>
 
 namespace ollygon{
 
 // == Geo ==
 
-void Geo::generate_render_data(std::vector<float>& vertex_data, std::vector<uint32_t>& index_data) const
+bool Geo::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir, float& t_out, Vec3& normal_out, uint32_t& tri_index_out) const
 {
+    float closest_t = std::numeric_limits<float>::max();
+    bool hit = false;
+
+    //brute force intersect all tris TODO: BVH/etc later
+    for (size_t i = 0; i < indices.size() / 3; i++) {
+        float t;
+        Vec3 normal;
+        if (intersect_tri(ray_origin, ray_dir, i, t, normal)) {
+            if (t < closest_t) {
+                closest_t = t;
+                normal_out = normal;
+                tri_index_out = i;
+                hit = true;
+            }
+        }
+    }
+
+    if (hit) {
+        t_out = closest_t;
+        return true;
+    }
+    return false;
 }
 
 bool Geo::intersect_tri(const Vec3& ray_origin, const Vec3& ray_dir, uint32_t tri_index, float& t_out, Vec3& normal_out) const
 {
-    return false;
+    // Moeller-Trumbore intersection algorithm
+    uint32_t i0 = indices[tri_index * 3];
+    uint32_t i1 = indices[tri_index * 3 + 1];
+    uint32_t i2 = indices[tri_index * 3 + 2];
+
+    Vec3 v0 = verts[i0].position;
+    Vec3 v1 = verts[i1].position;
+    Vec3 v2 = verts[i2].position;
+
+    Vec3 edge1 = v1 - v0;
+    Vec3 edge2 = v2 - v0;
+
+    Vec3 h = Vec3::cross(ray_dir, edge2);
+    float a = Vec3::dot(edge1, h);
+
+    if (std::abs(a) < 1e-8f) {
+        return false;  // ray parallel to triangle
+    }
+
+    float f = 1.0f / a;
+    Vec3 s = ray_origin - v0;
+    float u = f * Vec3::dot(s, h);
+
+    if (u < 0.0f || u > 1.0f) {
+        return false;
+    }
+
+    Vec3 q = Vec3::cross(s, edge1);
+    float v = f * Vec3::dot(ray_dir, q);
+
+    if (v < 0.0f || u + v > 1.0f) {
+        return false;
+    }
+
+    float t = f * Vec3::dot(edge2, q);
+
+    if (t < 0.001f) {  // avoid self-intersection
+        return false;
+    }
+
+    t_out = t;
+
+    // interpolate normal using barycentric coords
+    float w = 1.0f - u - v;
+    normal_out = verts[i0].normal * w +
+        verts[i1].normal * u +
+        verts[i2].normal * v;
+    normal_out = normal_out.normalised();
+
+    return true;
+}
+
+void Geo::generate_render_data(std::vector<float>& vertex_data, std::vector<uint32_t>& index_data) const
+{
+    vertex_data.clear();
+    index_data.clear();
+
+    //interleave position and normal: [x,y,z nx,ny,nz, ...]
+    for (const auto& v : verts) {
+        vertex_data.push_back(v.position.x);
+        vertex_data.push_back(v.position.y);
+        vertex_data.push_back(v.position.z);
+        vertex_data.push_back(v.normal.x);
+        vertex_data.push_back(v.normal.y);
+        vertex_data.push_back(v.normal.z);
+    }
+
+    index_data = indices;
 }
 
 
