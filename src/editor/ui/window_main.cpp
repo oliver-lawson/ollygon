@@ -43,53 +43,56 @@ namespace ollygon {
         Colour orange(1.0f, 0.6f, 0.2f);
         Colour yellow(1.0f, 0.9f, 0.3f);
 
+        float room_size = 5.55f;
+        float half_room = room_size * 0.5f;
+
         auto left_wall = std::make_unique<SceneNode>("Left Wall");
-        left_wall->node_type = NodeType::Mesh;
-        left_wall->geometry = std::make_unique<QuadGeometry>(
-            Vec3(0, 0, 0),
-            Vec3(0, 5.55f, 0),
-            Vec3(0, 0, -5.55f)
+        left_wall->node_type = NodeType::Primitive;
+        left_wall->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(0, half_room, 0),
+            Vec3(0, 0, -half_room)
         );
+        left_wall->transform.position = Vec3(0, half_room, -half_room);
         left_wall->albedo = green;
         scene.get_root()->add_child(std::move(left_wall));
 
         auto right_wall = std::make_unique<SceneNode>("Right Wall");
-        right_wall->node_type = NodeType::Mesh;
-        right_wall->geometry = std::make_unique<QuadGeometry>(
-            Vec3(5.55f, 0, 0),
-            Vec3(0, 5.55f, 0),
-            Vec3(0, 0, -5.55f)
+        right_wall->node_type = NodeType::Primitive;
+        right_wall->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(0, half_room, 0),
+            Vec3(0, 0, -half_room)
         );
+        right_wall->transform.position = Vec3(room_size, half_room, -half_room);
         right_wall->albedo = red;
         scene.get_root()->add_child(std::move(right_wall));
 
         auto floor = std::make_unique<SceneNode>("Floor");
-        floor->node_type = NodeType::Mesh;
-        floor->geometry = std::make_unique<QuadGeometry>(
-            Vec3(5.55f, 0, 0),
-            Vec3(-5.55f, 0, 0),
-            Vec3(0, 0, -5.55f)
+        floor->node_type = NodeType::Primitive;
+        floor->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(-half_room, 0, 0),
+            Vec3(0, 0, half_room)
         );
+        floor->transform.position = Vec3(half_room, 0, -half_room);
         floor->albedo = white;
         scene.get_root()->add_child(std::move(floor));
 
         auto ceiling = std::make_unique<SceneNode>("Ceiling");
-        ceiling->node_type = NodeType::Mesh;
-        ceiling->geometry = std::make_unique<QuadGeometry>(
-            Vec3(0, 5.55f, -5.55f),
-            Vec3(5.55f, 0, 0),
-            Vec3(0, 0, 5.55f)
+        ceiling->node_type = NodeType::Primitive;
+        ceiling->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(half_room, 0, 0),
+            Vec3(0, 0, half_room)
         );
+        ceiling->transform.position = Vec3(half_room, room_size, -half_room);
         ceiling->albedo = white;
         scene.get_root()->add_child(std::move(ceiling));
 
         auto back_wall = std::make_unique<SceneNode>("Back Wall");
-        back_wall->node_type = NodeType::Mesh;
-        back_wall->geometry = std::make_unique<QuadGeometry>(
-            Vec3(5.55f, 0, -5.55f),
-            Vec3(-5.55f, 0, 0),
-            Vec3(0, 5.55f, 0)
+        back_wall->node_type = NodeType::Primitive;
+        back_wall->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(-half_room, 0, 0),
+            Vec3(0, half_room, 0)
         );
+        back_wall->transform.position = Vec3(half_room, half_room, -room_size);
         back_wall->albedo = white;
         scene.get_root()->add_child(std::move(back_wall));
 
@@ -101,35 +104,35 @@ namespace ollygon {
         light_node->light->intensity = 1.0f;
         light_node->light->is_area_light = true;
 
-        light_node->geometry = std::make_unique<QuadGeometry>(
-            Vec3(2.12f, 5.54f, -3.32f),
-            Vec3(1.30f, 0, 0),
-            Vec3(0, 0, 1.05f)
+        light_node->primitive = std::make_unique<QuadPrimitive>(
+            Vec3(0.65f, 0, 0),
+            Vec3(0, 0, 0.525f)
         );
+        light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
         light_node->albedo = light_emission;
         scene.get_root()->add_child(std::move(light_node));
 
         auto tall_box = std::make_unique<SceneNode>("Tall Box");
-        tall_box->node_type = NodeType::Mesh;
-        tall_box->geometry = std::make_unique<BoxGeometry>(
-            Vec3(1.25f, 0, -4.60f),
-            Vec3(2.90f, 3.30f, -2.95f)
+        tall_box->node_type = NodeType::Primitive;
+        tall_box->primitive = std::make_unique<CuboidPrimitive>(
+            Vec3(1.65f, 3.3f, 1.65f)  // half-extents
         );
+        tall_box->transform.position = Vec3(2.075f, 1.65f, -3.775f);
         tall_box->albedo = orange;
         scene.get_root()->add_child(std::move(tall_box));
 
         auto short_box = std::make_unique<SceneNode>("Short Box");
-        short_box->node_type = NodeType::Mesh;
-        short_box->geometry = std::make_unique<BoxGeometry>(
-            Vec3(2.60f, 0, -2.30f),
-            Vec3(4.25f, 1.65f, -0.65f)
+        short_box->node_type = NodeType::Primitive;
+        short_box->primitive = std::make_unique<CuboidPrimitive>(
+            Vec3(1.65f, 1.65f, 1.65f)
         );
+        short_box->transform.position = Vec3(3.425f, 0.825f, -1.475f);
         short_box->albedo = yellow;
         scene.get_root()->add_child(std::move(short_box));
 
         auto sphere = std::make_unique<SceneNode>("Sphere");
-        sphere->node_type = NodeType::Mesh;
-        sphere->geometry = std::make_unique<SphereGeometry>(0.50f);
+        sphere->node_type = NodeType::Primitive;
+        sphere->primitive = std::make_unique<SpherePrimitive>(0.50f);
         sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
         sphere->albedo = Colour(0.9f, 0.9f, 0.9f);
         scene.get_root()->add_child(std::move(sphere));

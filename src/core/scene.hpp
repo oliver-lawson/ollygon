@@ -20,13 +20,19 @@ struct Transform {
 enum class NodeType {
     Empty,
     Mesh,
-    Light
+    Primitive,
+    Light,
+    Camera,
+    NodeTypeCount // I doubt we'll need such counts, but it stops having to
+                  // see git comma edits on unchanged lines, and better than
+                  // ugly comma-prefixed list I think
 };
 
 enum class LightType {
     Point,
     Directional,
-    Area
+    Area,
+    LightTypeCount
 };
 
 struct Light {
@@ -54,8 +60,10 @@ public:
     bool locked;
 
     // geo for mesh nodes
-    std::unique_ptr<Geometry> geometry;
+    std::unique_ptr<Primitive> primitive;
     Colour albedo;
+
+    // TODO: std::unique_ptr<Geometry> geometry;
 
     std::unique_ptr<Light> light;
 
@@ -103,7 +111,5 @@ public:
 private:
     std::unique_ptr<SceneNode> root;
 };
-
-
 
 } // namespace ollygon

@@ -7,27 +7,35 @@
 
 namespace ollygon {
 
-// == base geometry system ==
-// ideally almost all our meshes are considered as geo for now,
-// but later I want to add implicit meshes, SDFs etc.
-// so why not keep a native "sphere" or so too.  It should certainly
-// make for faster and nicer raytracing elements & faster serialisation
-// at the very least.
-//
-// so for now lets keep references to both approaches in the sphere etc
-//
-class Geometry {
-public:
-    virtual ~Geometry() = default;
+// == geo ==
+// TODO
 
-    // generates tri mesh data
+// 
+// all primitivees are analytic shapes defined in local space
+// viewport openGL: tessellate into tris
+// raytracer/click: optimal analytical ray calculations
+// 
+enum class PrimitiveType {
+    Sphere,
+    Quad,
+    Cuboid,
+    PrimitiveCount
+};
+
+class Primitive {
+public:
+    virtual ~Primitive() = default;
+
+    virtual PrimitiveType get_type() const = 0;
+
+    // generates tri mesh data for viewport rendering (local space)
     virtual void generate_mesh(
         std::vector<float>& verts, //pos(3) + norm(3) per v
         std::vector<unsigned int>& indices
     ) const = 0; // lets keep these pure virtual/abstract & const
                  // (note to self as I forget the func()=0; syntax)
 
-    // for raytracing intersection tests
+    // analytic raytracing intersection (local space)
     virtual bool intersect_ray(
         const Vec3& ray_origin,
         const Vec3& ray_dir,
@@ -36,11 +44,13 @@ public:
     ) const = 0;
 };
 
-class SphereGeometry : public Geometry {
+class SpherePrimitive : public Primitive {
 public:
     float radius;
 
-    explicit SphereGeometry(float r = 1.0f) : radius(r) {}
+    explicit SpherePrimitive(float r = 1.0f) : radius(r) {}
+
+    PrimitiveType get_type() const override { return PrimitiveType::Sphere; }
 
     void generate_mesh(
         std::vector<float>& verts,
@@ -55,18 +65,16 @@ public:
     ) const override;
 };
 
-// quad geometry - defined by corner and two edge vectors
-class QuadGeometry : public Geometry {
+// quad geometry - two edge vectors from centre
+// quad spanning from -u,-v to +u,+v
+class QuadPrimitive : public Primitive {
 public:
-    Vec3 corner;
-    Vec3 u, v;  // two edge vectors from corner
-                // copied from Peter Shirley's geometry
-                // TEMP - i'm not a fan of this, but it will do for a quick
-                // cornell box setup
+    Vec3 u, v;  // half-width edge vectors
 
-    QuadGeometry(const Vec3& c, const Vec3& u_vec, const Vec3& v_vec)
-        : corner(c), u(u_vec), v(v_vec) {
-    }
+    QuadPrimitive(const Vec3& u_vec, const Vec3& v_vec)
+        : u(u_vec), v(v_vec) {}
+
+    PrimitiveType get_type() const override { return PrimitiveType::Quad; }
 
     void generate_mesh(
         std::vector<float>& verts,
@@ -81,14 +89,16 @@ public:
     ) const override;
 };
 
-// box geometry - TEMP simple axis--aligned for now
-class BoxGeometry : public Geometry {
+// cuboid primitive - defined by extents from centre
+// eg extents(1,1,2) creates a tall cuboid at centre
+class CuboidPrimitive : public Primitive {
 public:
-    Vec3 min;
-    Vec3 max;
+    Vec3 extents;
 
-    BoxGeometry(const Vec3& min_pt, const Vec3& max_pt)
-        : min(min_pt), max(max_pt) {}
+    CuboidPrimitive(const Vec3& _extents = Vec3(1,1,1))
+        : extents(_extents) {}
+
+    PrimitiveType get_type() const override { return PrimitiveType::Cuboid; }
 
     void generate_mesh(
         std::vector<float>& verts,

@@ -1,5 +1,6 @@
 #include "selection_handler.hpp"
 #include <limits>
+#include "mat4.hpp"
 
 namespace ollygon {
 
@@ -40,15 +41,29 @@ bool SelectionHandler::raycast_node(SceneNode* node, const Vec3& ray_origin, con
 
     if (node->locked || !node->visible) return false;
 
-    // test geometry if present
-    if (node->geometry && node->node_type == NodeType::Mesh) {
+    // test primitive if present
+    if (node->primitive && node->node_type == NodeType::Primitive) {
+        // build transform matrix
+        Mat4 translate = Mat4::translate(
+            node->transform.position.x,
+            node->transform.position.y,
+            node->transform.position.z
+        );
+        Mat4 scale = Mat4::scale(
+            node->transform.scale.x,
+            node->transform.scale.y,
+            node->transform.scale.z
+        );
+        Mat4 model = translate * scale;
+        Mat4 inv_model = model.inverse();
+
         // transform ray to local space
-        Vec3 local_origin = ray_origin - node->transform.position;
-        // TODO: proper inverse transform when we add rotation/scale
+        Vec3 local_origin = inv_model.transform_point(ray_origin);
+        Vec3 local_dir = inv_model.transform_direction(ray_dir).normalised();
 
         float t;
         Vec3 normal;
-        if (node->geometry->intersect_ray(local_origin, ray_dir, t, normal)) {
+        if (node->primitive->intersect_ray(local_origin, local_dir, t, normal)) {
             if (t < closest_t) {
                 closest_t = t;
                 hit_node = node;

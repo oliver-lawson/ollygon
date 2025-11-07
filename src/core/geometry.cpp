@@ -5,7 +5,7 @@
 namespace ollygon{
 // == Sphere ==
 
-void SphereGeometry::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const
+void SpherePrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const
 {
     const int segments = 32;
     const int rings = 16;
@@ -28,7 +28,7 @@ void SphereGeometry::generate_mesh(std::vector<float>& verts, std::vector<unsign
             verts.push_back(z * radius);
 
             // normal (normalised position for unit sphere)
-            verts.push_back(x);
+            verts.push_back(x); 
             verts.push_back(y);
             verts.push_back(z);
         }
@@ -51,7 +51,7 @@ void SphereGeometry::generate_mesh(std::vector<float>& verts, std::vector<unsign
     }
 }
 
-bool SphereGeometry::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir, float& t_out, Vec3& normal_out) const {
+bool SpherePrimitive::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir, float& t_out, Vec3& normal_out) const {
     // sphere is at origin in local space (transform applied externally)
     Vec3 oc = ray_origin;
     float a = Vec3::dot(ray_dir, ray_dir);
@@ -76,7 +76,7 @@ bool SphereGeometry::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir, 
 }
 
 // == Quad ==
-void QuadGeometry::generate_mesh(
+void QuadPrimitive::generate_mesh(
     std::vector<float>& verts,
     std::vector<unsigned int>& indices
 ) const {
@@ -84,11 +84,12 @@ void QuadGeometry::generate_mesh(
 
     size_t vertex_start = verts.size() / 6;
 
+    // quad corners from centre, spanning -uv,+u & -v,+v
     Vec3 corners[4] = {
-        corner,
-        corner + u,
-        corner + u + v,
-        corner + v
+        -u - v,
+        u - v,
+        u + v,
+        -u + v
     };
 
     for (int i = 0; i < 4; ++i) {
@@ -110,7 +111,7 @@ void QuadGeometry::generate_mesh(
     indices.push_back(vertex_start + 3);
 }
 
-bool QuadGeometry::intersect_ray(
+bool QuadPrimitive::intersect_ray(
     const Vec3& ray_origin,
     const Vec3& ray_dir,
     float& t_out,
@@ -121,21 +122,21 @@ bool QuadGeometry::intersect_ray(
 
     if (std::abs(denom) < 1e-6f) return false;  // parallel
 
-    Vec3 p0 = ray_origin - corner;
-    float t = -Vec3::dot(p0, n) / denom;
+    // quad is centred at origin in local space
+    float t = -Vec3::dot(ray_origin, n) / denom;
 
     if (t < 0.001f) return false;
 
     Vec3 hit_point = ray_origin + ray_dir * t;
-    Vec3 d = hit_point - corner;
 
     // check if inside quad using parametric coords
+    // quad spans from -u to +u and -v to +v
     float u_len_sq = Vec3::dot(u, u);
     float v_len_sq = Vec3::dot(v, v);
-    float u_param = Vec3::dot(d, u) / u_len_sq;
-    float v_param = Vec3::dot(d, v) / v_len_sq;
+    float u_param = Vec3::dot(hit_point, u) / u_len_sq;
+    float v_param = Vec3::dot(hit_point, v) / v_len_sq;
 
-    if (u_param < 0.0f || u_param > 1.0f || v_param < 0.0f || v_param > 1.0f) {
+    if (u_param < -1.0f || u_param > 1.0f || v_param < -1.0f || v_param > 1.0f) {
         return false;
     }
 
@@ -145,21 +146,23 @@ bool QuadGeometry::intersect_ray(
 }
 
 // == Box ==
-void BoxGeometry::generate_mesh(
+void CuboidPrimitive::generate_mesh(
     std::vector<float>& verts,
     std::vector<unsigned int>& indices
 ) const {
     size_t vertex_start = verts.size() / 6;
 
+    Vec3 h = extents / 2; // half the extents to draw these offsets around 0
+
     Vec3 corners[8] = {
-        Vec3(min.x, min.y, min.z),
-        Vec3(max.x, min.y, min.z),
-        Vec3(max.x, max.y, min.z),
-        Vec3(min.x, max.y, min.z),
-        Vec3(min.x, min.y, max.z),
-        Vec3(max.x, min.y, max.z),
-        Vec3(max.x, max.y, max.z),
-        Vec3(min.x, max.y, max.z)
+        Vec3(-h.x, -h.y, -h.z),
+        Vec3(h.x, -h.y, -h.z),
+        Vec3(h.x,  h.y, -h.z),
+        Vec3(-h.x,  h.y, -h.z),
+        Vec3(-h.x, -h.y,  h.z),
+        Vec3(h.x, -h.y,  h.z),
+        Vec3(h.x,  h.y,  h.z),
+        Vec3(-h.x,  h.y,  h.z)
     };
 
     struct Face {
@@ -197,27 +200,26 @@ void BoxGeometry::generate_mesh(
     }
 }
 
-bool BoxGeometry::intersect_ray(
+bool CuboidPrimitive::intersect_ray(
     const Vec3& ray_origin,
     const Vec3& ray_dir,
     float& t_out,
     Vec3& normal_out
-) const {
-    // TEMP
-    // fairly horrible for even an AA box
-    // slab method
+)const {
+    // slab method for AABB centred at origin
     Vec3 inv_dir = Vec3(
         std::abs(ray_dir.x) > 1e-6f ? 1.0f / ray_dir.x : 1e6f,
         std::abs(ray_dir.y) > 1e-6f ? 1.0f / ray_dir.y : 1e6f,
         std::abs(ray_dir.z) > 1e-6f ? 1.0f / ray_dir.z : 1e6f
     );
 
-    float t1 = (min.x - ray_origin.x) * inv_dir.x;
-    float t2 = (max.x - ray_origin.x) * inv_dir.x;
-    float t3 = (min.y - ray_origin.y) * inv_dir.y;
-    float t4 = (max.y - ray_origin.y) * inv_dir.y;
-    float t5 = (min.z - ray_origin.z) * inv_dir.z;
-    float t6 = (max.z - ray_origin.z) * inv_dir.z;
+    Vec3 h = extents / 2;
+    float t1 = (-h.x - ray_origin.x) * inv_dir.x;
+    float t2 = (h.x - ray_origin.x) * inv_dir.x;
+    float t3 = (-h.y - ray_origin.y) * inv_dir.y;
+    float t4 = (h.y - ray_origin.y) * inv_dir.y;
+    float t5 = (-h.z - ray_origin.z) * inv_dir.z;
+    float t6 = (h.z - ray_origin.z) * inv_dir.z;
 
     float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
     float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));

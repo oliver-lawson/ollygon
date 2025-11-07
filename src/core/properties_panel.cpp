@@ -87,7 +87,7 @@ void PropertiesPanel::rebuild_ui(SceneNode* node) {
 
     // type-specific controls
     switch (node->node_type) {
-    case NodeType::Mesh:
+    case NodeType::Primitive:
         create_transform_controls(node, main_layout);
         create_mesh_controls(node, main_layout);
         break;

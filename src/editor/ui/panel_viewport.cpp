@@ -135,7 +135,7 @@ namespace ollygon {
         // walk scene and accumulate all geometry, tracking ranges
         std::function<void(SceneNode*)> collect_geometry = [&](SceneNode* node) {
             if (!node->visible) return;
-            if (node->geometry && (node->node_type == NodeType::Mesh || node->node_type == NodeType::Light)) {
+            if (node->primitive && (node->node_type == NodeType::Primitive|| node->node_type == NodeType::Light)) {
                 unsigned int index_start = scene_indices.size();
                 unsigned int vert_start = scene_vertices.size() / 6;
 
@@ -147,7 +147,7 @@ namespace ollygon {
                 // generate mesh for this node
                 std::vector<float> node_vertices;
                 std::vector<unsigned int> node_indices;
-                node->geometry->generate_mesh(node_vertices, node_indices);
+                node->primitive->generate_mesh(node_vertices, node_indices);
 
                 std::cout << "  generated " << (node_vertices.size() / 6) << " vertices, "
                     << node_indices.size() << " indices" << std::endl;
@@ -230,7 +230,7 @@ namespace ollygon {
 
         bool is_selected = selection_handler && (selection_handler->get_selected() == node);
 
-        if ((node->node_type == NodeType::Mesh || node->node_type == NodeType::Light) && node->geometry) {
+        if ((node->node_type == NodeType::Primitive || node->node_type == NodeType::Light) && node->primitive) {
             // check if we have geo for this node
             auto it = geometry_ranges.find(node);
             if (it != geometry_ranges.end()) {
@@ -248,7 +248,7 @@ namespace ollygon {
                     node->transform.position.z
                 );
 
-                model = scale * model;
+                model = model * scale;
 
                 shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());
                 shader_program->setUniformValue("object_colour",
