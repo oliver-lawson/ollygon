@@ -62,6 +62,9 @@ public:
 signals:
     void scene_modified();
 
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 private slots:
     void on_filter_changed(const QString& new_text);
 

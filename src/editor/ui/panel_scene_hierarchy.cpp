@@ -1,6 +1,8 @@
 ﻿#include "panel_scene_hierarchy.hpp"
 
 #include <QPainter>
+#include <QEvent>
+#include <QKeyEvent>
 
 namespace ollygon {
 
@@ -41,6 +43,7 @@ SceneHierarchyTree::SceneHierarchyTree(QWidget* parent)
     // entire rows, so for now lets just do this and use the custom
     // paint for the selection highlights (which sadly have to render
     // over the text)
+    // TODO: revisit when more familiar with Qt style overrides etc
     setAlternatingRowColors(true);
     connect(this, &QTreeWidget::itemClicked, this, &SceneHierarchyTree::on_item_clicked);
 }
@@ -261,9 +264,23 @@ PanelSceneHierarchy::PanelSceneHierarchy(QWidget* parent)
     // connect tree/filter
     connect(filter_edit, &QLineEdit::textChanged, this, &PanelSceneHierarchy::on_filter_changed);
 
+    // event filter so that Esc can clear text too
+    filter_edit->installEventFilter(this);
+
     // connect any tree signals to single "modified" signal
     connect(tree, &SceneHierarchyTree::node_visibility_toggled, this, &PanelSceneHierarchy::scene_modified);
     connect(tree, &SceneHierarchyTree::node_locked_toggled, this, &PanelSceneHierarchy::scene_modified);
+}
+
+bool PanelSceneHierarchy::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == filter_edit && event->type() == QEvent::KeyPress) {
+        QKeyEvent* key_event = static_cast<QKeyEvent*>(event);
+        if (key_event->key() == Qt::Key_Escape) {
+            filter_edit->clear();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void PanelSceneHierarchy::on_filter_changed(const QString& new_text)
