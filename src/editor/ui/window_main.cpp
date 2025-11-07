@@ -134,27 +134,32 @@ namespace ollygon {
         sphere->node_type = NodeType::Primitive;
         sphere->primitive = std::make_unique<SpherePrimitive>(0.50f);
         sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
-        sphere->albedo = Colour(0.9f, 0.9f, 0.9f);
+        sphere->albedo = Colour(0.19f, 0.18f, 0.9f);
         scene.get_root()->add_child(std::move(sphere));
 
-        auto test_tri = std::make_unique<SceneNode>("Triangle (mesh)");
-        test_tri->node_type = NodeType::Mesh;
-        test_tri->geo = std::make_unique<Geo>();
+        // == test quad ==
+        auto test_quad = std::make_unique<SceneNode>("Triangle (mesh)");
+        test_quad->node_type = NodeType::Mesh;
+        test_quad->geo = std::make_unique<Geo>();
 
-        Vec3 corners[3] = {
+        Vec3 corners[4] = {
             Vec3( 1.4f,  0.0f,  0.4f),
             Vec3(-0.1f, -0.1f,  0.1f),
-            Vec3( 0.8f,  1.3f, -0.2f)
+            Vec3( 0.8f,  1.3f,  0.2f),
+            Vec3( 0.1f,  1.1f,  0.1f)
         };
         Vec3 normal = Vec3(0, 1.0f, 0);
 
-        for (int i = 0; i < 3; i++) {
-            test_tri->geo->add_vertex(corners[i], normal);
+        for (int i = 0; i < 4; i++) {
+            test_quad->geo->add_vertex(corners[i], normal);
         }
-        test_tri->geo->add_tri(0, 1, 2);
-        test_tri->transform.position = Vec3(1.5f, 3.5f, -3.5f);
-        scene.get_root()->add_child(std::move(test_tri));
+        
+        test_quad->geo->add_tri(0, 1, 2);
+        test_quad->geo->add_tri(1, 3, 2);
+        test_quad->albedo = Colour(0.3f, 0.9f, 0.1f);
+        test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
+        scene.get_root()->add_child(std::move(test_quad));
     }
 
     void MainWindow::create_dock_widgets() {
