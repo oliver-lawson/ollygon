@@ -3,6 +3,21 @@
 #include <algorithm>
 
 namespace ollygon{
+
+// == Geo ==
+
+void Geo::generate_render_data(std::vector<float>& vertex_data, std::vector<uint32_t>& index_data) const
+{
+}
+
+bool Geo::intersect_tri(const Vec3& ray_origin, const Vec3& ray_dir, uint32_t tri_index, float& t_out, Vec3& normal_out) const
+{
+    return false;
+}
+
+
+// == Primitives ==
+
 // == Sphere ==
 
 void SpherePrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const

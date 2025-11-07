@@ -59,8 +59,10 @@ public:
     bool visible;
     bool locked;
 
-    // geo for mesh nodes
+    // will be set depending on node_type between:
     std::unique_ptr<Primitive> primitive;
+    std::unique_ptr<Geo> geo;
+
     Colour albedo;
 
     // TODO: std::unique_ptr<Geometry> geometry;
