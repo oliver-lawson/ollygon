@@ -31,12 +31,78 @@ struct Mat4 {
         return mat;
     }
 
+    // transform a point (applies translation)
+    Vec3 transform_point(const Vec3& p) const {
+        float x = m[0] * p.x + m[4] * p.y + m[8] * p.z + m[12];
+        float y = m[1] * p.x + m[5] * p.y + m[9] * p.z + m[13];
+        float z = m[2] * p.x + m[6] * p.y + m[10] * p.z + m[14];
+        float w = m[3] * p.x + m[7] * p.y + m[11] * p.z + m[15];
+
+        if (w != 1.0f && w != 0.0f) {
+            return Vec3(x / w, y / w, z / w);
+        }
+        return Vec3(x, y, z);
+    }
+
+    // transform a direction (ignores translation)
+    Vec3 transform_direction(const Vec3& d) const {
+        float x = m[0] * d.x + m[4] * d.y + m[8] * d.z;
+        float y = m[1] * d.x + m[5] * d.y + m[9] * d.z;
+        float z = m[2] * d.x + m[6] * d.y + m[10] * d.z;
+        return Vec3(x, y, z);
+    }
+
     static Mat4 scale(float x, float y, float z) {
         Mat4 mat;
         mat.m[0] = x;
         mat.m[5] = y;
         mat.m[10] = z;
         return mat;
+    }
+
+    // matrix inverse, affine transform only
+    Mat4 inverse() const {
+        Mat4 inv;
+
+        // extract scale from upper 3x3 (length of each column)
+        float sx = std::sqrt(m[0] * m[0] + m[1] * m[1] + m[2] * m[2]);
+        float sy = std::sqrt(m[4] * m[4] + m[5] * m[5] + m[6] * m[6]);
+        float sz = std::sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
+
+        // check for zero scale (avoid division by zero)
+        if (sx < 1e-8f) sx = 1.0f;
+        if (sy < 1e-8f) sy = 1.0f;
+        if (sz < 1e-8f) sz = 1.0f;
+
+        // inverse scale
+        float inv_sx = 1.0f / sx;
+        float inv_sy = 1.0f / sy;
+        float inv_sz = 1.0f / sz;
+
+        // inverse rotation (transpose of normalised rotation part)
+        // also apply inverse scale to each axis
+        inv.m[0] = m[0] * inv_sx / sx;  // normalised then scaled
+        inv.m[1] = m[4] * inv_sy / sx;
+        inv.m[2] = m[8] * inv_sz / sx;
+        inv.m[3] = 0;
+
+        inv.m[4] = m[1] * inv_sx / sy;
+        inv.m[5] = m[5] * inv_sy / sy;
+        inv.m[6] = m[9] * inv_sz / sy;
+        inv.m[7] = 0;
+
+        inv.m[8] = m[2] * inv_sx / sz;
+        inv.m[9] = m[6] * inv_sy / sz;
+        inv.m[10] = m[10] * inv_sz / sz;
+        inv.m[11] = 0;
+
+        // inverse translation (apply inverse rotation+scale to translation)
+        inv.m[12] = -(inv.m[0] * m[12] + inv.m[4] * m[13] + inv.m[8] * m[14]);
+        inv.m[13] = -(inv.m[1] * m[12] + inv.m[5] * m[13] + inv.m[9] * m[14]);
+        inv.m[14] = -(inv.m[2] * m[12] + inv.m[6] * m[13] + inv.m[10] * m[14]);
+        inv.m[15] = 1;
+
+        return inv;
     }
     
     static Mat4 perspective(float fov_y_rad, float aspect, float near, float far) {
