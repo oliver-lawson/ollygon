@@ -126,7 +126,7 @@ namespace ollygon {
     void PanelViewport::rebuild_scene_geometry() {
         if (!scene || !geometry_dirty) return;
 
-        scene_vertices.clear();
+        scene_verts.clear();
         scene_indices.clear();
         geometry_ranges.clear();
 
@@ -135,21 +135,32 @@ namespace ollygon {
         // walk scene and accumulate all geometry, tracking ranges
         std::function<void(SceneNode*)> collect_geometry = [&](SceneNode* node) {
             if (!node->visible) return;
-            if (node->primitive && (node->node_type == NodeType::Mesh || node->node_type == NodeType::Primitive|| node->node_type == NodeType::Light)) {
+
+            bool has_renderable_object = false;
+            std::vector<float> node_verts;
+            std::vector<unsigned int> node_indices;
+
+            //prims
+            if (node->primitive && (node->node_type == NodeType::Primitive || node->node_type == NodeType::Light)) {
+                node->primitive->generate_mesh(node_verts, node_indices);
+                has_renderable_object = true;
+            }
+            // meshes
+            else if (node->geo && (node->node_type == NodeType::Mesh)) {
+                node->geo->generate_render_data(node_verts, node_indices);
+                has_renderable_object = true;
+            }
+
+            if (has_renderable_object) {
                 unsigned int index_start = scene_indices.size();
-                unsigned int vert_start = scene_vertices.size() / 6;
+                unsigned int vert_start = scene_verts.size() / 6;
 
                 //TEMP
                 std::cout << "NODE: " << node->name
                     << " | vertex start: " << vert_start
                     << " | index start: " << index_start << std::endl;
 
-                // generate mesh for this node
-                std::vector<float> node_vertices;
-                std::vector<unsigned int> node_indices;
-                node->primitive->generate_mesh(node_vertices, node_indices);
-
-                std::cout << "  generated " << (node_vertices.size() / 6) << " vertices, "
+                std::cout << "  generated " << (node_verts.size() / 6) << " verts, "
                     << node_indices.size() << " indices" << std::endl;
 
                 // offset indices to account for existing verts
@@ -157,8 +168,8 @@ namespace ollygon {
                     scene_indices.push_back(idx + vert_start);
                 }
 
-                // append vertices
-                scene_vertices.insert(scene_vertices.end(), node_vertices.begin(), node_vertices.end());
+                // append verts
+                scene_verts.insert(scene_verts.end(), node_verts.begin(), node_verts.end());
 
                 // record range for this node
                 GeometryRange range;
@@ -166,7 +177,7 @@ namespace ollygon {
                 range.index_count = node_indices.size();
                 geometry_ranges[node] = range;
 
-                // TEMP until I can get cornell working..
+                // TEMP
                 std::cout << "  RANGE: offset=" << range.index_offset << " count=" << range.index_count << std::endl;
             }
 
@@ -177,13 +188,13 @@ namespace ollygon {
 
         collect_geometry(scene->get_root());
 
-        std::cout << "total verts: " << (scene_vertices.size() / 6) << " | total indices: " << scene_indices.size() << std::endl;
+        std::cout << "total verts: " << (scene_verts.size() / 6) << " | total indices: " << scene_indices.size() << std::endl;
 
         // upload to GPU
         vao.bind();
 
         vbo.bind();
-        vbo.allocate(scene_vertices.data(), scene_vertices.size() * sizeof(float));
+        vbo.allocate(scene_verts.data(), scene_verts.size() * sizeof(float));
 
         ebo.bind();
         ebo.allocate(scene_indices.data(), scene_indices.size() * sizeof(unsigned int));
@@ -230,17 +241,14 @@ namespace ollygon {
 
         bool is_selected = selection_handler && (selection_handler->get_selected() == node);
 
-        if ((node->node_type == NodeType::Primitive || node->node_type == NodeType::Light) && node->primitive) {
+        bool has_renderable_object = (node->primitive && (node->node_type == NodeType::Primitive || node->node_type == NodeType::Light)) ||
+            (node->geo && node->node_type == NodeType::Mesh);
+
+        if (has_renderable_object) {
             // check if we have geo for this node
             auto it = geometry_ranges.find(node);
             if (it != geometry_ranges.end()) {
                 const GeometryRange& range = it->second;
-
-                Mat4 scale = Mat4::scale(
-                    node->transform.scale.x,
-                    node->transform.scale.y,
-                    node->transform.scale.z
-                );
 
                 Mat4 model = Mat4::translate(
                     node->transform.position.x,
@@ -248,7 +256,13 @@ namespace ollygon {
                     node->transform.position.z
                 );
 
-                model = model * scale;
+                Mat4 scale = Mat4::scale(
+                    node->transform.scale.x,
+                    node->transform.scale.y,
+                    node->transform.scale.z
+                );
+
+                model = model * scale;  // apply scale in local space, then translate to world
 
                 shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());
                 shader_program->setUniformValue("object_colour",

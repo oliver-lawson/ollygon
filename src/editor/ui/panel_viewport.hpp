@@ -53,7 +53,7 @@ private:
     QOpenGLBuffer vbo;
     QOpenGLBuffer ebo;
 
-    std::vector<float> scene_vertices;
+    std::vector<float> scene_verts;
     std::vector<unsigned int> scene_indices;
     std::unordered_map<SceneNode*, GeometryRange> geometry_ranges;
     bool geometry_dirty;
