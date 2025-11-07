@@ -49,8 +49,8 @@ namespace ollygon {
         auto left_wall = std::make_unique<SceneNode>("Left Wall");
         left_wall->node_type = NodeType::Primitive;
         left_wall->primitive = std::make_unique<QuadPrimitive>(
-            Vec3(0, half_room, 0),
-            Vec3(0, 0, -half_room)
+            Vec3(0, 0, -half_room),
+            Vec3(0, half_room, 0)
         );
         left_wall->transform.position = Vec3(0, half_room, -half_room);
         left_wall->albedo = green;
@@ -89,8 +89,8 @@ namespace ollygon {
         auto back_wall = std::make_unique<SceneNode>("Back Wall");
         back_wall->node_type = NodeType::Primitive;
         back_wall->primitive = std::make_unique<QuadPrimitive>(
-            Vec3(-half_room, 0, 0),
-            Vec3(0, half_room, 0)
+            Vec3(0, half_room, 0),
+            Vec3(-half_room, 0, 0)
         );
         back_wall->transform.position = Vec3(half_room, half_room, -room_size);
         back_wall->albedo = white;
@@ -138,7 +138,7 @@ namespace ollygon {
         scene.get_root()->add_child(std::move(sphere));
 
         // == test quad ==
-        auto test_quad = std::make_unique<SceneNode>("Triangle (mesh)");
+        auto test_quad = std::make_unique<SceneNode>("Quad test (mesh)");
         test_quad->node_type = NodeType::Mesh;
         test_quad->geo = std::make_unique<Geo>();
 
@@ -154,9 +154,9 @@ namespace ollygon {
             test_quad->geo->add_vertex(corners[i], normal);
         }
         
-        test_quad->geo->add_tri(0, 1, 2);
-        test_quad->geo->add_tri(1, 3, 2);
-        test_quad->albedo = Colour(0.3f, 0.9f, 0.1f);
+        test_quad->geo->add_tri(2, 1, 0);
+        test_quad->geo->add_tri(2, 3, 1);
+        test_quad->albedo = Colour(0.9f, 0.01f, 0.95f);
         test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
         scene.get_root()->add_child(std::move(test_quad));

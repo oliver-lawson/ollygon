@@ -52,7 +52,7 @@ namespace ollygon {
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // TEMP the "normal background" colour.  TODO: tie this to a proper world setting synced across to ot
 
         glEnable(GL_DEPTH_TEST);
-        // glEnable(GL_CULL_FACE); // TEMP not yet
+        glEnable(GL_CULL_FACE); // TODO add control
 
         shader_program = new QOpenGLShaderProgram(this);
 

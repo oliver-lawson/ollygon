@@ -120,7 +120,7 @@ void SpherePrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsig
     // generate verts
     for (int ring = 0; ring <= rings; ++ring) {
         float phi = 3.14159f * float(ring) / float(rings);
-        for (int seg = 0; seg <= segments; ++seg) {
+        for (int seg = segments; seg >= 0; --seg) {
             float theta = 2.0f * 3.14159f * float(seg) / float(segments);
 
             float x = std::sin(phi) * std::cos(theta);
@@ -276,12 +276,12 @@ void CuboidPrimitive::generate_mesh(
     };
 
     Face faces[6] = {
-        {{0, 1, 2, 3}, Vec3(0, 0, -1)},  // front
-        {{5, 4, 7, 6}, Vec3(0, 0, 1)},   // back
-        {{4, 0, 3, 7}, Vec3(-1, 0, 0)},  // left
-        {{1, 5, 6, 2}, Vec3(1, 0, 0)},   // right
-        {{4, 5, 1, 0}, Vec3(0, -1, 0)},  // bottom
-        {{3, 2, 6, 7}, Vec3(0, 1, 0)}    // top
+        {{3, 2, 1, 0}, Vec3(0, 0, -1)},  // back
+        {{6, 7, 4, 5}, Vec3(0, 0, 1)},   // front
+        {{7, 3, 0, 4}, Vec3(-1, 0, 0)},  // left
+        {{2, 6, 5, 1}, Vec3(1, 0, 0)},   // right
+        {{0, 1, 5, 4}, Vec3(0, -1, 0)},  // bottom
+        {{7, 6, 2, 3}, Vec3(0, 1, 0)}    // top
     };
 
     for (int f = 0; f < 6; ++f) {
