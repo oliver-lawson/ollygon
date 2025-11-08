@@ -25,6 +25,8 @@ private:
     void setup_cornell_box();
     void create_dock_widgets();
     void create_menus();
+    void setup_shortcuts();
+    void on_delete_pressed();
 
     Scene scene;
     SelectionHandler selection_handler;

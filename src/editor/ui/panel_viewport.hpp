@@ -30,6 +30,8 @@ public:
     void set_selection_handler(SelectionHandler* handler);
     Camera* get_camera() { return &camera; }
 
+    void mark_geometry_dirty() { geometry_dirty = true; }
+
 protected:
     void initializeGL() override;
     void resizeGL(int w, int h) override;

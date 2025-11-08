@@ -5,7 +5,11 @@
 #include <QTreeWidgetItem>
 #include <QHeaderView>
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QMenu>
+#include <QContextMenuEvent>
 #include "core/scene.hpp"
 #include "core/selection_handler.hpp"
 
@@ -24,10 +28,11 @@ public:
 signals:
     void node_visibility_toggled(SceneNode* node);
     void node_locked_toggled(SceneNode* node);
+    void delete_requested(SceneNode* node);
 
 protected:
     void paintEvent(QPaintEvent* event) override;
-
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 public slots:
     void refresh_display();
@@ -61,16 +66,23 @@ public:
 
 signals:
     void scene_modified();
+    void node_created(SceneNode* node);
+    void node_deleted();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private slots:
     void on_filter_changed(const QString& new_text);
+    void on_add_button_clicked();
+    void on_delete_node(SceneNode* node);
 
 private:
+    void show_create_menu();
+
     Scene* scene;
     QLineEdit* filter_edit;
+    QPushButton* add_button;
 };
 
 } // namespace ollygon

@@ -43,7 +43,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_sphere(const std::string& nam
     return node;
 }
 
-std::unique_ptr<SceneNode> SceneOperations::create_box(const std::string& name) {
+std::unique_ptr<SceneNode> SceneOperations::create_cuboid(const std::string& name) {
     auto node = std::make_unique<SceneNode>(name);
     node->node_type = NodeType::Primitive;
     node->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.0f, 1.0f, 1.0f));

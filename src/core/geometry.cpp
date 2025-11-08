@@ -250,7 +250,7 @@ bool QuadPrimitive::intersect_ray(
     return true;
 }
 
-// == Box ==
+// == Cuboid ==
 void CuboidPrimitive::generate_mesh(
     std::vector<float>& verts,
     std::vector<unsigned int>& indices

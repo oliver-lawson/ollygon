@@ -1,8 +1,10 @@
 ﻿#include "panel_scene_hierarchy.hpp"
+#include "core/scene_operations.hpp"
 
 #include <QPainter>
 #include <QEvent>
 #include <QKeyEvent>
+#include <QAction>
 
 namespace ollygon {
 
@@ -29,7 +31,7 @@ SceneHierarchyTree::SceneHierarchyTree(QWidget* parent)
     setColumnWidth(Column::Visible, 30);
     setColumnWidth(Column::Locked, 30);
 
-    header()->setContextMenuPolicy(Qt::CustomContextMenu); //TODO
+    header()->setContextMenuPolicy(Qt::CustomContextMenu);
     setIndentation(15);
 
     // disable Qt's built-in rounded selection bar.
@@ -59,6 +61,22 @@ void SceneHierarchyTree::populate_from_scene(Scene* scene)
 
 void SceneHierarchyTree::set_selection_handler(SelectionHandler* new_handler) {
     selection_handler = new_handler;
+}
+
+void SceneHierarchyTree::contextMenuEvent(QContextMenuEvent* event)
+{
+    QTreeWidgetItem* item = itemAt(event->pos());
+    if (!item) return;
+    SceneNode* node = get_node_from_item(item);
+    if (!node || node->name == "root") return;
+
+    QMenu menu(this);
+    QAction* delete_action = menu.addAction("Delete");
+
+    QAction* selected = menu.exec(event->globalPos());
+    if (selected == delete_action) {
+        emit delete_requested(node);
+    }
 }
 
 // Qt's native Windows style seems to  aggressively paint its own bg in drawRow(), 
@@ -250,19 +268,30 @@ PanelSceneHierarchy::PanelSceneHierarchy(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(2);
 
-    // search filter
+    // top bar: + button, search filter
+    QHBoxLayout* top_bar = new QHBoxLayout();
+    top_bar->setSpacing(4);
+
+    add_button = new QPushButton("+");
+    add_button->setFixedWidth(30);
+    add_button->setToolTip("Add new object to the scene");
+    connect(add_button, &QPushButton::clicked, this, &PanelSceneHierarchy::on_add_button_clicked);
+    top_bar->addWidget(add_button);
+
     filter_edit = new QLineEdit();
     filter_edit->setPlaceholderText("Search...");
     filter_edit->setClearButtonEnabled(true);
-    layout->addWidget(filter_edit);
+    top_bar->addWidget(filter_edit);
+
+    layout->addLayout(top_bar);
 
     //tree
-
     tree = new SceneHierarchyTree();
     layout->addWidget(tree);
 
     // connect tree/filter
     connect(filter_edit, &QLineEdit::textChanged, this, &PanelSceneHierarchy::on_filter_changed);
+    connect(tree, &SceneHierarchyTree::delete_requested, this, &PanelSceneHierarchy::on_delete_node);
 
     // event filter so that Esc can clear text too
     filter_edit->installEventFilter(this);
@@ -273,6 +302,7 @@ PanelSceneHierarchy::PanelSceneHierarchy(QWidget* parent)
 }
 
 bool PanelSceneHierarchy::eventFilter(QObject* watched, QEvent* event) {
+    // esc to quit out of filter mode
     if (watched == filter_edit && event->type() == QEvent::KeyPress) {
         QKeyEvent* key_event = static_cast<QKeyEvent*>(event);
         if (key_event->key() == Qt::Key_Escape) {
@@ -304,6 +334,90 @@ void PanelSceneHierarchy::set_selection_handler(SelectionHandler* new_handler) {
 
 void PanelSceneHierarchy::rebuild_tree() {
     tree->populate_from_scene(scene);
+}
+
+void PanelSceneHierarchy::on_add_button_clicked()
+{
+    show_create_menu();
+}
+
+void PanelSceneHierarchy::on_delete_node(SceneNode* node)
+{
+    if (!scene || !node) return;
+
+    if (SceneOperations::delete_node(scene, node)) {
+        rebuild_tree();
+        emit node_deleted();
+        emit scene_modified();
+    }
+}
+
+void PanelSceneHierarchy::show_create_menu()
+{
+    if (!scene) return;
+
+    QMenu menu(this);
+
+    QAction* add_mesh = menu.addAction("Mesh");
+
+    menu.addSeparator();
+
+    QMenu* primitives_menu = menu.addMenu("Primitive");
+    QAction* add_sphere = primitives_menu->addAction("Sphere");
+    QAction* add_cuboid = primitives_menu->addAction("Cuboid");
+    QAction* add_quad = primitives_menu->addAction("Quad");
+
+    menu.addSeparator();
+
+    QMenu* lights_menu = menu.addMenu("Light");
+    QAction* add_point_light = lights_menu->addAction("Point Light");
+    QAction* add_area_light = lights_menu->addAction("Area Light");
+
+    menu.addSeparator();
+
+    QAction* add_empty = menu.addAction("Empty");
+
+    //show menu at button
+    QPoint global_pos = add_button->mapToGlobal(QPoint(0, add_button->height()));
+    QAction* selected = menu.exec(global_pos);
+
+    if (!selected) return;
+
+    std::unique_ptr<SceneNode> new_node;
+
+    if (selected == add_sphere) {
+        new_node = SceneOperations::create_sphere();
+    }
+    else if (selected == add_cuboid) {
+        new_node = SceneOperations::create_cuboid();
+    }
+    else if (selected == add_quad) {
+        new_node = SceneOperations::create_quad();
+    }
+    else if (selected == add_mesh) {
+        new_node = SceneOperations::create_mesh();
+    }
+    else if (selected == add_point_light) {
+        new_node = SceneOperations::create_point_light();
+    }
+    else if (selected == add_area_light) {
+        new_node = SceneOperations::create_area_light();
+    }
+    else if (selected == add_empty) {
+        new_node = SceneOperations::create_empty();
+    }
+
+    if (!new_node) {
+        // this shouldn't happen!
+        qWarning() << "Failed to create scene node";
+        return;
+    }
+
+    SceneNode* node_ptr = new_node.get();
+    scene->get_root()->add_child(std::move(new_node));
+    rebuild_tree();
+    emit node_created(node_ptr);
+    emit scene_modified();
 }
 
 } // namespace ollygon

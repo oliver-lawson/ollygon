@@ -14,7 +14,7 @@ public:
 
     // create stuff
     static std::unique_ptr<SceneNode> create_sphere(const std::string& name = "Sphere");
-    static std::unique_ptr<SceneNode> create_box(const std::string& name = "Box");
+    static std::unique_ptr<SceneNode> create_cuboid(const std::string& name = "Cuboid");
     static std::unique_ptr<SceneNode> create_quad(const std::string& name = "Quad");
 
     static std::unique_ptr<SceneNode> create_empty(const std::string& name = "Empty");

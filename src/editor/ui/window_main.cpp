@@ -1,9 +1,11 @@
 #include "window_main.hpp"
 #include "panel_viewport.hpp"
 #include "core/properties_panel.hpp"
+#include "core/scene_operations.hpp"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
+#include <QShortcut>
 #include <QVBoxLayout>
 
 namespace ollygon {
@@ -21,6 +23,7 @@ namespace ollygon {
         setup_cornell_box();
         setup_ui();
         create_menus();
+        setup_shortcuts();
     }
 
     MainWindow::~MainWindow() = default;
@@ -180,9 +183,18 @@ namespace ollygon {
         connect(properties_panel, &PropertiesPanel::properties_changed, scene_hierarchy->tree, &SceneHierarchyTree::refresh_display);
         // scene modified from hierarchy and needs to update over onto properties?:
         connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, properties_panel, &PropertiesPanel::refresh_from_node);
-        // visible/locked toggled on hierarchy?:
+        // visible/locked toggled, or items added/deleted on hierarchy?:
         connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, [this]() {
+            viewport->mark_geometry_dirty();
             viewport->update();
+        });
+
+        // connect node creation/deletion
+        connect(scene_hierarchy, &PanelSceneHierarchy::node_created, this, [this](SceneNode* node) {
+            selection_handler.set_selected(node);
+        });
+        connect(scene_hierarchy, &PanelSceneHierarchy::node_deleted, this, [this]() {
+            selection_handler.clear_selection();
         });
 
         scene_dock->setWidget(scene_hierarchy);
@@ -200,6 +212,24 @@ namespace ollygon {
         QMenu* view_menu = menuBar()->addMenu("&View");
         view_menu->addAction(properties_panel->toggleViewAction());
         view_menu->addAction(scene_dock->toggleViewAction());
+    }
+
+    void MainWindow::setup_shortcuts() {
+        // delete selected node
+        QShortcut* delete_shortcut = new QShortcut(QKeySequence::Delete, this);
+        connect(delete_shortcut, &QShortcut::activated, this, &MainWindow::on_delete_pressed);
+    }
+
+    void MainWindow::on_delete_pressed() {
+        SceneNode* selected = selection_handler.get_selected();
+        if (!selected || selected == scene.get_root()) return;
+
+        if (SceneOperations::delete_node(&scene, selected)) {
+            scene_hierarchy->rebuild_tree();
+            selection_handler.clear_selection();
+            viewport->mark_geometry_dirty();
+            viewport->update();
+        }
     }
 
 } // namespace ollygon
