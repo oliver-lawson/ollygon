@@ -1,4 +1,5 @@
 #include "serialisation.hpp"
+#include <QFile>
 
 namespace ollygon {
 
@@ -6,22 +7,184 @@ namespace ollygon {
 
 bool SceneSerialiser::save_scene(const Scene* scene, const QString& filepath)
 {
-    return false;
+    if (!scene) return false;
+
+    QJsonObject root_obj;
+    root_obj["version"] = 1;
+
+    root_obj["scene"] = serialise_node(scene->get_root());
+
+    QJsonDocument doc(root_obj);
+
+    QFile file(filepath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Failed to open file for writing: " << filepath;
+        return false;
+    }
+
+    file.write(doc.toJson(QJsonDocument::Indented));
+    file.close();
+
+    qDebug() << "Scene saved to " << filepath;
+
+    return true;
 }
 
 bool SceneSerialiser::load_scene(Scene* scene, const QString& filepath)
 {
-    return false;
+    if (!scene) return false;
+
+    QFile file(filepath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "Failed to open file for reading: " << filepath;
+        return false;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (doc.isNull() || !doc.isObject()) {
+        qWarning() << "Invalid JSON in file: " << filepath;
+    }
+
+    QJsonObject root_obj = doc.object();
+    int version = root_obj["version"].toInt();
+
+    if (version != 1) {
+        // TEMP
+        qWarning() << "Unsupported scene version: " << version;
+        return false;
+    }
+
+    //deserialise scene
+    QJsonObject scene_obj = root_obj["scene"].toObject();
+    auto new_root = deserialise_node(scene_obj);
+
+    //replace scene root
+    scene->get_root()->children.clear();
+    for (auto& child : new_root->children) {
+        scene->get_root()->add_child(std::move(child));
+    }
+
+    qDebug() << "Scene loaded from " << filepath;
+    return true;
 }
 
 QJsonObject SceneSerialiser::serialise_node(const SceneNode* node)
 {
-    return QJsonObject();
+    QJsonObject obj;
+
+    obj["name"] = QString::fromStdString(node->name);
+    obj["visible"] = node->visible;
+    obj["locked"] = node->locked;
+
+    //transform
+    QJsonObject transform_obj;
+    transform_obj["position"] = vec3_to_json(node->transform.position);
+    transform_obj["rotation"] = vec3_to_json(node->transform.rotation);
+    transform_obj["scale"] = vec3_to_json(node->transform.scale);
+    obj["transform"] = transform_obj;
+
+    //node type
+    QString node_type;
+    switch (node->node_type) {
+        case NodeType::Empty: node_type = "empty"; break;
+        case NodeType::Mesh: node_type = "mesh"; break;
+        case NodeType::Primitive: node_type = "primitive"; break;
+        case NodeType::Light: node_type = "light"; break;
+        case NodeType::Camera: node_type = "camera"; break;
+        default: node_type = "error"; break;
+    }
+    obj["node_type"] = node_type;
+
+    //TEMP albedo (per-geo baked mat placeholder)
+    obj["albedo"] = colour_to_json(node->albedo);
+
+    //geometry/primitive
+    if (node->primitive) {
+        switch (node->primitive->get_type()) {
+            case PrimitiveType::Sphere:
+                obj["primitive"] = serialise_sphere(static_cast<const SpherePrimitive*>(node->primitive.get()));
+                break;
+            case PrimitiveType::Quad:
+                obj["primitive"] = serialise_quad(static_cast<const QuadPrimitive*>(node->primitive.get()));
+                break;
+            case PrimitiveType::Cuboid:
+                obj["primitive"] = serialise_cuboid(static_cast<const CuboidPrimitive*>(node->primitive.get()));
+                break;
+            default: break;
+        }
+    }
+
+    // mesh/lights/etc
+    if (node->geo) obj["geo"] = serialise_geo(node->geo.get());
+    if (node->light) obj["light"] = serialise_light(node->light.get());
+    
+    //children
+    QJsonArray children_array;
+    for (const auto& child : node->children) {
+        children_array.append(serialise_node(child.get()));
+    }
+    obj["children"] = children_array;
+
+    return obj;
 }
 
-std::unique_ptr<SceneNode> SceneSerialiser::deserialise_node(const QJsonObject& obj)
-{
-    return std::unique_ptr<SceneNode>();
+std::unique_ptr<SceneNode> SceneSerialiser::deserialise_node(const QJsonObject& obj) {
+
+    auto node = std::make_unique<SceneNode>();
+
+    node->name = obj["name"].toString().toStdString();
+    node->visible = obj["visible"].toBool(true);
+    node->locked = obj["locked"].toBool(false);
+
+    //transform
+    QJsonObject transform_obj = obj["transform"].toObject();
+    node->transform.position = json_to_vec3(transform_obj["position"].toArray());
+    node->transform.rotation = json_to_vec3(transform_obj["rotation"].toArray());
+    node->transform.scale = json_to_vec3(transform_obj["scale"].toArray());
+
+    //node type
+    QString node_type = obj["node_type"].toString();
+    if (node_type == "empty") node->node_type = NodeType::Empty;
+    else if (node_type == "mesh") node->node_type = NodeType::Mesh;
+    else if (node_type == "primitive") node->node_type = NodeType::Primitive;
+    else if (node_type == "light") node->node_type = NodeType::Light;
+    else if (node_type == "camera") node->node_type = NodeType::Camera;
+
+    //albedo
+    node->albedo = json_to_colour(obj["albedo"].toArray());
+
+    //primitives
+    if (obj.contains("primitive")) {
+        QJsonObject prim_obj = obj["primitive"].toObject();
+        QString prim_type = prim_obj["type"].toString();
+
+        if (prim_type == "sphere") {
+            node->primitive = deserialise_sphere(prim_obj);
+        }
+        else if (prim_type == "quad") {
+            node->primitive = deserialise_quad(prim_obj);
+        }
+        else if (prim_type == "cuboid") {
+            node->primitive = deserialise_cuboid(prim_obj);
+        }
+    }
+
+    // geo
+    if (obj.contains("geo")) node->geo = deserialise_geo(obj["geo"].toObject());
+    // light
+    if (obj.contains("light")) node->light = deserialise_light(obj["light"].toObject());
+
+    //children
+    QJsonArray children_array = obj["children"].toArray();
+    for (const auto& child_val : children_array) {
+        auto child = deserialise_node(child_val.toObject());
+        node->add_child(std::move(child));
+    }
+
+    return node;
 }
 
 // == objects ==
@@ -53,7 +216,7 @@ std::unique_ptr<QuadPrimitive> SceneSerialiser::deserialise_quad(const QJsonObje
 QJsonObject SceneSerialiser::serialise_cuboid(const CuboidPrimitive* cuboid) {
     QJsonObject obj;
     obj["type"] = "cuboid";
-    obj["u"] = SceneSerialiser::vec3_to_json(cuboid->extents);
+    obj["extents"] = SceneSerialiser::vec3_to_json(cuboid->extents);
     return obj;
 }
 std::unique_ptr<CuboidPrimitive> SceneSerialiser::deserialise_cuboid(const QJsonObject& obj) {

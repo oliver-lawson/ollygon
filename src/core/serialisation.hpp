@@ -28,15 +28,15 @@ private:
     static QJsonObject serialise_sphere(const SpherePrimitive* sphere);
     static std::unique_ptr<SpherePrimitive> deserialise_sphere(const QJsonObject& obj);
     static QJsonObject serialise_quad(const QuadPrimitive* quad);
-    std::unique_ptr<QuadPrimitive> deserialise_quad(const QJsonObject& obj);
-    QJsonObject serialise_cuboid(const CuboidPrimitive* quad);
-    std::unique_ptr<CuboidPrimitive> deserialise_cuboid(const QJsonObject& obj);
+    static std::unique_ptr<QuadPrimitive> deserialise_quad(const QJsonObject& obj);
+    static QJsonObject serialise_cuboid(const CuboidPrimitive* quad);
+    static std::unique_ptr<CuboidPrimitive> deserialise_cuboid(const QJsonObject& obj);
 
-    QJsonObject serialise_geo(const Geo* geo);
-    std::unique_ptr<Geo> deserialise_geo(const QJsonObject& obj);
+    static QJsonObject serialise_geo(const Geo* geo);
+    static std::unique_ptr<Geo> deserialise_geo(const QJsonObject& obj);
 
-    QJsonObject serialise_light(const Light* light);
-    std::unique_ptr<Light> deserialise_light(const QJsonObject& obj);
+    static QJsonObject serialise_light(const Light* light);
+    static std::unique_ptr<Light> deserialise_light(const QJsonObject& obj);
 
     static QJsonArray vec3_to_json(const Vec3& v);
     static Vec3 json_to_vec3(const QJsonArray& arr);

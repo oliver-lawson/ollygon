@@ -28,6 +28,12 @@ private:
     void setup_shortcuts();
     void on_delete_pressed();
 
+    void save_scene();
+    void save_scene_as();
+    void load_scene();
+
+    void refresh_scene_ui();
+
     Scene scene;
     SelectionHandler selection_handler;
 
@@ -35,6 +41,8 @@ private:
     PropertiesPanel* properties_panel;
     QDockWidget* scene_dock;
     PanelSceneHierarchy* scene_hierarchy;
+
+    QString current_filepath;
 };
 
 } // namespace ollygon
