@@ -24,7 +24,7 @@ struct Material {
     //TEMP chequerrboard specific
     Colour chequerboard_colour_a;
     Colour chequerboard_colour_b;
-    Colour chequerboard_scale;
+    float chequerboard_scale;
 
     //openGL rendering hints
     float metallic;
@@ -50,6 +50,7 @@ struct Material {
         mat.albedo = _albedo;
         mat.metallic = 0.0f;
         mat.specular = 0.2f;
+        return mat;
     }
 
     static Material metal(const Colour& albedo, float roughness = 0.0f) {

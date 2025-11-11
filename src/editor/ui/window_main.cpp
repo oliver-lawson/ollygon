@@ -1,5 +1,6 @@
 #include "window_main.hpp"
 #include "panel_viewport.hpp"
+#include "panel_raytracer.hpp"
 #include "core/properties_panel.hpp"
 #include "core/scene_operations.hpp"
 #include "core/serialisation.hpp"
@@ -10,6 +11,8 @@
 #include <QVBoxLayout>
 #include <QFileDialog>
 #include <QMessageBox>
+#include <QScreen>
+#include <QApplication>
 
 namespace ollygon {
 
@@ -19,6 +22,7 @@ MainWindow::MainWindow(QWidget* parent)
     , properties_panel(nullptr)
     , scene_dock(nullptr)
     , scene_hierarchy(nullptr)
+    , raytracer_window(nullptr)
 {
     setWindowTitle("ollygon");
     resize(1280, 720);
@@ -26,6 +30,7 @@ MainWindow::MainWindow(QWidget* parent)
     setup_cornell_box();
     setup_ui();
     create_menus();
+    show_raytracer_window();
     setup_shortcuts();
 }
 
@@ -59,6 +64,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(0, half_room, 0)
     );
     left_wall->transform.position = Vec3(0, half_room, -half_room);
+    left_wall->material = Material::lambertian(green);
     left_wall->albedo = green;
     scene.get_root()->add_child(std::move(left_wall));
 
@@ -69,6 +75,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(0, 0, -half_room)
     );
     right_wall->transform.position = Vec3(room_size, half_room, -half_room);
+    right_wall->material = Material::lambertian(red);
     right_wall->albedo = red;
     scene.get_root()->add_child(std::move(right_wall));
 
@@ -79,6 +86,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(0, 0, half_room)
     );
     floor->transform.position = Vec3(half_room, 0, -half_room);
+    floor->material = Material::lambertian(white);
     floor->albedo = white;
     scene.get_root()->add_child(std::move(floor));
 
@@ -89,6 +97,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(0, 0, half_room)
     );
     ceiling->transform.position = Vec3(half_room, room_size, -half_room);
+    ceiling->material = Material::lambertian(white);
     ceiling->albedo = white;
     scene.get_root()->add_child(std::move(ceiling));
 
@@ -99,6 +108,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(-half_room, 0, 0)
     );
     back_wall->transform.position = Vec3(half_room, half_room, -room_size);
+    back_wall->material = Material::lambertian(white);
     back_wall->albedo = white;
     scene.get_root()->add_child(std::move(back_wall));
 
@@ -115,15 +125,17 @@ void MainWindow::setup_cornell_box() {
         Vec3(0, 0, 0.525f)
     );
     light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
+    light_node->material = Material::emissive(light_emission);
     light_node->albedo = light_emission;
     scene.get_root()->add_child(std::move(light_node));
 
     auto tall_box = std::make_unique<SceneNode>("Tall Box");
     tall_box->node_type = NodeType::Primitive;
     tall_box->primitive = std::make_unique<CuboidPrimitive>(
-        Vec3(1.65f, 3.3f, 1.65f)  // half-extents
+        Vec3(1.65f, 3.3f, 1.65f)
     );
     tall_box->transform.position = Vec3(2.075f, 1.65f, -3.775f);
+    tall_box->material = Material::lambertian(orange);
     tall_box->albedo = orange;
     scene.get_root()->add_child(std::move(tall_box));
 
@@ -133,6 +145,7 @@ void MainWindow::setup_cornell_box() {
         Vec3(1.65f, 1.65f, 1.65f)
     );
     short_box->transform.position = Vec3(3.425f, 0.825f, -1.475f);
+    short_box->material = Material::chequerboard(yellow, red, 4.0f);
     short_box->albedo = yellow;
     scene.get_root()->add_child(std::move(short_box));
 
@@ -140,10 +153,18 @@ void MainWindow::setup_cornell_box() {
     sphere->node_type = NodeType::Primitive;
     sphere->primitive = std::make_unique<SpherePrimitive>(0.50f);
     sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
+    sphere->material = Material::metal(Colour(0.19f, 0.18f, 0.9f));
     sphere->albedo = Colour(0.19f, 0.18f, 0.9f);
     scene.get_root()->add_child(std::move(sphere));
 
-    // == test quad ==
+    auto sphere2 = std::make_unique<SceneNode>("Sphere2");
+    sphere2->node_type = NodeType::Primitive;
+    sphere2->primitive = std::make_unique<SpherePrimitive>(0.50f);
+    sphere2->transform.position = Vec3(1.415f, 3.480f, -2.335f);
+    sphere2->transform.scale = 2.0f;
+    sphere2->material = Material::dielectric(1.5f);
+    scene.get_root()->add_child(std::move(sphere2));
+
     auto test_quad = std::make_unique<SceneNode>("Quad test (mesh)");
     test_quad->node_type = NodeType::Mesh;
     test_quad->geo = std::make_unique<Geo>();
@@ -162,6 +183,7 @@ void MainWindow::setup_cornell_box() {
 
     test_quad->geo->add_tri(2, 1, 0);
     test_quad->geo->add_tri(2, 3, 1);
+    test_quad->material = Material::lambertian(Colour(0.9f, 0.01f, 0.95f));
     test_quad->albedo = Colour(0.9f, 0.01f, 0.95f);
     test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
@@ -232,6 +254,11 @@ void MainWindow::create_menus() {
     QMenu* view_menu = menuBar()->addMenu("&View");
     view_menu->addAction(properties_panel->toggleViewAction());
     view_menu->addAction(scene_dock->toggleViewAction());
+
+    QMenu* render_menu = menuBar()->addMenu("&Render");
+    QAction* show_raytracer_action = new QAction("Show &Raytracer", this);
+    connect(show_raytracer_action, &QAction::triggered, this, &MainWindow::show_raytracer_window);
+    render_menu->addAction(show_raytracer_action);
 }
 
 void MainWindow::setup_shortcuts() {
@@ -310,6 +337,20 @@ void MainWindow::refresh_scene_ui() {
     scene_hierarchy->rebuild_tree();
     viewport->mark_geometry_dirty();
     viewport->update();
+}
+
+void MainWindow::show_raytracer_window()
+{
+    if (!raytracer_window) {
+        raytracer_window = new RaytracerWindow();
+        raytracer_window->set_scene(&scene);
+        raytracer_window->set_camera(viewport->get_camera());
+    }
+    raytracer_window->resize(900, 720);
+
+    raytracer_window->show();
+    raytracer_window->raise();
+    raytracer_window->activateWindow();
 }
 
 } // namespace ollygon

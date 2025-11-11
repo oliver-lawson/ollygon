@@ -3,6 +3,7 @@
 #include "core/vec3.hpp"
 #include "core/colour.hpp"
 #include "core/geometry.hpp"
+#include "core/material.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -63,7 +64,9 @@ public:
     std::unique_ptr<Primitive> primitive;
     std::unique_ptr<Geo> geo;
 
-    Colour albedo;
+    Material material;
+
+    Colour albedo; //TODO: DEPRECATE
 
     // TODO: std::unique_ptr<Geometry> geometry;
 

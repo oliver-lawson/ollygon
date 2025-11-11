@@ -12,6 +12,7 @@ namespace ollygon {
 class PanelViewport;
 class PropertiesPanel;
 class PanelSceneHierarchy;
+class RaytracerWindow;
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
@@ -33,6 +34,8 @@ private:
     void load_scene();
 
     void refresh_scene_ui();
+    
+    void show_raytracer_window();
 
     Scene scene;
     SelectionHandler selection_handler;
@@ -41,6 +44,7 @@ private:
     PropertiesPanel* properties_panel;
     QDockWidget* scene_dock;
     PanelSceneHierarchy* scene_hierarchy;
+    RaytracerWindow* raytracer_window;
 
     QString current_filepath;
 };

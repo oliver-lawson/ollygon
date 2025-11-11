@@ -49,7 +49,7 @@ namespace ollygon {
         initializeOpenGLFunctions();
         //glClearColor(1.0f, 0.1f, 0.1f, 1.0f); // the "something is very wrong" colour
 
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // TEMP the "normal background" colour.  TODO: tie this to a proper world setting synced across to ot
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // TEMP the "normal background" colour.  TODO: tie this to a proper world setting synced across to okaytracer
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE); // TODO add control
