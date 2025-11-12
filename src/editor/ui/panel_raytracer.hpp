@@ -5,6 +5,7 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QImage>
 #include "core/scene.hpp"
 #include "core/camera.hpp"
@@ -54,6 +55,8 @@ private:
 
     QTimer* update_timer;
 
+    QElapsedTimer render_timer;
+    QLabel* time_label;
 };
 
 } // namespace ollygon

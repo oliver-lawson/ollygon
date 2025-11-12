@@ -41,7 +41,6 @@ void RaytracerWindow::setup_ui() {
     QGroupBox* controls_group = new QGroupBox("Render Settings");
     QHBoxLayout* controls_layout = new QHBoxLayout(controls_group);
 
-    QLabel* res_label = new QLabel("Resolution:");
     width_spinbox = new QSpinBox();
     width_spinbox->setRange(64, 4096);
     width_spinbox->setValue(render_config.width);
@@ -52,7 +51,6 @@ void RaytracerWindow::setup_ui() {
     height_spinbox->setValue(render_config.height);
     height_spinbox->setSuffix(" px");
 
-    controls_layout->addWidget(res_label);
     controls_layout->addWidget(width_spinbox);
     controls_layout->addWidget(new QLabel("x"));
     controls_layout->addWidget(height_spinbox);
@@ -85,6 +83,9 @@ void RaytracerWindow::setup_ui() {
 
     progress_label = new QLabel("Ready");
     controls_layout->addWidget(progress_label);
+
+    time_label = new QLabel("Time: 0.0s");
+    controls_layout->addWidget(time_label);
 
     main_layout->addWidget(controls_group);
 
@@ -147,6 +148,8 @@ void RaytracerWindow::start_render() {
     samples_spinbox->setEnabled(false);
     bounces_spinbox->setEnabled(false);
 
+    render_timer.start();
+
     update_timer->start(33); //30fps
 }
 
@@ -161,13 +164,22 @@ void RaytracerWindow::stop_render() {
     samples_spinbox->setEnabled(true);
     bounces_spinbox->setEnabled(true);
 
+    qint64 elapsed_ms = render_timer.elapsed();
+    float elapsed_sec = elapsed_ms / 1000.0f;
     progress_label->setText("Stopped");
+    time_label->setText(QString("Time: %1s (stopped)").arg(elapsed_sec, 0, 'f', 2));
 }
 
 void RaytracerWindow::update_render() {
     if (!raytracer.is_rendering()) {
         stop_render();
         progress_label->setText("Complete!");
+        
+        qint64 elapsed_ms = render_timer.elapsed();
+        float elapsed_sec = elapsed_ms / 1000.0f;
+        progress_label->setText(QString("Complete! (%1 samples)").arg(render_config.samples_per_pixel));
+        time_label->setText(QString("Time: %1s").arg(elapsed_sec, 0, 'f', 2));
+
         return;
     }
 
@@ -175,7 +187,11 @@ void RaytracerWindow::update_render() {
 
     // update progress...might be better on less samples?
     float progress = raytracer.get_progress();
+
+    qint64 elapsed_ms = render_timer.elapsed();
+    float elapsed_sec = elapsed_ms / 1000.0f;
     progress_label->setText(QString("Rendering... %1%").arg(int(progress * 100)));
+    time_label->setText(QString("Time: %1s").arg(elapsed_sec, 0, 'f', 1));
 
     update_display();
 }
