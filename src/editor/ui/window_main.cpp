@@ -333,8 +333,8 @@ void MainWindow::load_scene() {
 }
 
 void MainWindow::refresh_scene_ui() {
-    selection_handler.clear_selection();
     scene_hierarchy->rebuild_tree();
+    selection_handler.clear_selection();
     viewport->mark_geometry_dirty();
     viewport->update();
 }
