@@ -18,14 +18,15 @@ struct RenderConfig {
     int height;
     int samples_per_pixel;
     int max_bounces;
+    uint64_t seed;
 
     RenderConfig()
         : width(600)
         , height(600)
-        , samples_per_pixel(10)
+        , samples_per_pixel(100)
         , max_bounces(8)
-    {
-    }
+        , seed(1)
+    {}
 };
 
 struct CameraBasis {
@@ -54,6 +55,8 @@ public:
 
     void render_tile(int start_row, int end_row, const CameraBasis& basis);
 
+    uint64_t hash_pixel(int x, int y, uint64_t seed) const;
+
 private:
     CameraBasis compute_camera_basis() const;
 
@@ -63,17 +66,17 @@ private:
     bool intersect_cuboid(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_triangle(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
 
-    Colour ray_colour(const Ray& ray, int depth) const;
-    bool scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const;
+    Colour ray_colour(const Ray& ray, int depth, uint64_t& rng) const;
+    bool scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const;
 
     // mat scattering funcs
-    bool scatter_lambertian(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const;
-    bool scatter_metal(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const;
-    bool scatter_dielectric(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const;
+    bool scatter_lambertian(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const;
+    bool scatter_metal(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const;
+    bool scatter_dielectric(const Ray& rain_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const;
     Colour get_chequerboard_colour(const Vec3& point, const Material& mat) const;
 
-    Vec3 random_in_unit_sphere() const;
-    Vec3 random_unit_vector() const;
+    Vec3 random_in_unit_sphere(uint64_t& rng) const;
+    Vec3 random_unit_vector(uint64_t& rng) const;
     Vec3 reflect(const Vec3& v, const Vec3& n) const;
     Vec3 refract(const Vec3& v, const Vec3& n, float etai_over_etat) const;
     float reflectance(float cosine, float ref_idx) const;
@@ -88,13 +91,12 @@ private:
     bool rendering;
     int current_sample;
 
-    mutable uint64_t rng_state;
-
-    float random_float() const { // from https://en.wikipedia.org/wiki/Xorshift
-        rng_state ^= rng_state >> 12;
-        rng_state ^= rng_state << 25;
-        rng_state ^= rng_state >> 27;
-        return float((rng_state * 0x2545F4914F6CDD1DULL) >> 33) / float(1ULL << 31);
+    float random_float(uint64_t& state) const {
+        // from https://en.wikipedia.org/wiki/Xorshift with added state by reference to force thread-locality
+        state ^= state >> 12;
+        state ^= state << 25;
+        state ^= state >> 27;
+        return float((state * 0x2545F4914F6CDD1DULL) >> 33) / float(1ULL << 31);
     }
 
     int num_threads = std::thread::hardware_concurrency();

@@ -9,7 +9,6 @@ namespace okaytracer {
 Raytracer::Raytracer()
     : rendering(false)
     , current_sample(0)
-    , rng_state(std::random_device{}() | (uint64_t(std::random_device{}()) << 32))
     {}
 
 Raytracer::~Raytracer() {
@@ -83,19 +82,18 @@ void Raytracer::render_one_sample() {
 void Raytracer::render_tile(int start_row, int end_row, const CameraBasis& basis) {
     for (int j = start_row; j < end_row; j++) {
         for (int i = 0; i < config.width; i++) {
-            // random jitter for anti-aliasing
-            float jitter_x = random_float();
-            float jitter_y = random_float();
+            // seed rng deterministically per pixel
+            uint64_t pixel_rng = hash_pixel(i, j, config.seed + current_sample);
 
             // convert u,v to pixel position with jitter
-            Vec3 pixel_centre = basis.viewport_upper_left +
-                basis.pixel_delta_u * (float(i) + jitter_x) - 
-                basis.pixel_delta_v * (float(j) + jitter_y);
+            Vec3 pixel_centre = basis.viewport_upper_left + 
+                basis.pixel_delta_u * (float(i) + random_float(pixel_rng)) - 
+                basis.pixel_delta_v * (float(j) + random_float(pixel_rng));
             
             Vec3 ray_dir = (pixel_centre - basis.camera_pos).normalised();
             Ray ray(basis.camera_pos, ray_dir);
-
-            Colour pixel_colour = ray_colour(ray, config.max_bounces);
+            
+            Colour pixel_colour = ray_colour(ray, config.max_bounces, pixel_rng);
 
             int idx = (j * config.width + i) * 3;
             sample_buffer[idx + 0] = pixel_colour.r;
@@ -103,6 +101,19 @@ void Raytracer::render_tile(int start_row, int end_row, const CameraBasis& basis
             sample_buffer[idx + 2] = pixel_colour.b;
         }
     }
+}
+
+uint64_t Raytracer::hash_pixel(int x, int y, uint64_t seed) const {
+    // Murmurhash based
+    uint64_t h = seed;
+    h ^= x + 0x9e3779b9 + (h << 6) + (h >> 2);
+    h ^= y + 0x9e3779b9 + (h << 6) + (h >> 2);
+    h ^= h >> 33;
+    h *= 0xff51afd7ed558ccdULL;
+    h ^= h >> 33;
+    h *= 0xc4ceb9fe1a85ec53ULL;
+    h ^= h >> 33;
+    return h;
 }
 
 CameraBasis Raytracer::compute_camera_basis() const {
@@ -308,7 +319,7 @@ bool Raytracer::intersect_triangle( const RenderPrimitive& prim, const Ray& ray,
 }
 
 // note..recursive, not sure if this will be a problem for gpu accel later
-Colour Raytracer::ray_colour(const Ray& ray, int depth) const
+Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
 {
     if (depth <= 0) return Colour(0, 0, 0);
 
@@ -324,7 +335,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth) const
         if (depth < config.max_bounces - 2) {  // after a few bounces
             float p = std::max(rec.material.albedo.r,
                 std::max(rec.material.albedo.g, rec.material.albedo.b));
-            if (random_float() > p) {
+            if (random_float(rng) > p) {
                 return Colour(0, 0, 0);  // terminate early
             }
             // boost surviving rays
@@ -335,8 +346,8 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth) const
         Ray scattered;
         Colour attenuation;
 
-        if (scatter(ray, rec, attenuation, scattered)) {
-            Colour bounced = ray_colour(scattered, depth - 1);
+        if (scatter(ray, rec, attenuation, scattered, rng)) {
+            Colour bounced = ray_colour(scattered, depth - 1, rng);
             return Colour(
                 attenuation.r * bounced.r,
                 attenuation.g * bounced.g,
@@ -357,28 +368,28 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth) const
     return (white * (1.0f - t) + blue * t) * 0.05f;
 }
 
-bool Raytracer::scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const
+bool Raytracer::scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const
 {
     switch (rec.material.type)
     {
         case MaterialType::Lambertian:
-            return scatter_lambertian(ray_in, rec, attenuation, scattered);
+            return scatter_lambertian(ray_in, rec, attenuation, scattered, rng);
         case MaterialType::Metal:
-            return scatter_metal(ray_in, rec, attenuation, scattered);
+            return scatter_metal(ray_in, rec, attenuation, scattered, rng);
         case MaterialType::Dielectric:
-            return scatter_dielectric(ray_in, rec, attenuation, scattered);
+            return scatter_dielectric(ray_in, rec, attenuation, scattered, rng);
         case MaterialType::Chequerboard:
             attenuation = get_chequerboard_colour(rec.point, rec.material);
-            scattered = Ray(rec.point, rec.normal + random_unit_vector());
+            scattered = Ray(rec.point, rec.normal + random_unit_vector(rng));
             return true;
         default:
             return false;
     }
 }
 
-bool Raytracer::scatter_lambertian(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const
+bool Raytracer::scatter_lambertian(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const
 {
-    Vec3 scatter_dir = rec.normal + random_unit_vector();
+    Vec3 scatter_dir = rec.normal + random_unit_vector(rng);
 
     // catch degenerate scatter direction
     if (std::abs(scatter_dir.x) < 1e-8f &&
@@ -393,20 +404,20 @@ bool Raytracer::scatter_lambertian(const Ray& ray_in, const Intersection& rec, C
     return true;
 }
 
-bool Raytracer::scatter_metal(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const
+bool Raytracer::scatter_metal(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const
 {
     Vec3 reflected = reflect(ray_in.direction.normalised(), rec.normal);
 
     //TEMP adding roughness by perturbing reflection 
     //TODO: read pbrt microfacet roughness chapter
-    Vec3 fuzz = random_unit_vector() * rec.material.roughness;
+    Vec3 fuzz = random_unit_vector(rng) * rec.material.roughness;
     scattered = Ray(rec.point, (reflected + fuzz).normalised());
     attenuation = rec.material.albedo;
 
     return Vec3::dot(scattered.direction, rec.normal) > 0;
 }
 
-bool Raytracer::scatter_dielectric(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered) const
+bool Raytracer::scatter_dielectric(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const
 {
     attenuation = Colour(1, 1, 1);
     float refraction_ratio = rec.front_face ? (1.0f / rec.material.ior) : rec.material.ior;
@@ -419,7 +430,7 @@ bool Raytracer::scatter_dielectric(const Ray& ray_in, const Intersection& rec, C
     Vec3 direction;
 
     // schlick approx
-    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_float()) {
+    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_float(rng)) {
         direction = reflect(unit_dir, rec.normal);
     }
     else {
@@ -442,13 +453,13 @@ Colour Raytracer::get_chequerboard_colour(const Vec3& point, const Material& mat
     return is_even ? mat.chequerboard_colour_a : mat.chequerboard_colour_b;
 }
 
-Vec3 Raytracer::random_in_unit_sphere() const
+Vec3 Raytracer::random_in_unit_sphere(uint64_t& rng) const
 {
     while (true) {
         Vec3 p(
-            random_float() * 2.0f - 1.0f,
-            random_float() * 2.0f - 1.0f,
-            random_float() * 2.0f - 1.0f
+            random_float(rng) * 2.0f - 1.0f,
+            random_float(rng) * 2.0f - 1.0f,
+            random_float(rng) * 2.0f - 1.0f
         );
         if (Vec3::dot(p, p) < 1.0f) {
             return p;
@@ -456,9 +467,9 @@ Vec3 Raytracer::random_in_unit_sphere() const
     }
 }
 
-Vec3 Raytracer::random_unit_vector() const
+Vec3 Raytracer::random_unit_vector(uint64_t& rng) const
 {
-    return random_in_unit_sphere().normalised();
+    return random_in_unit_sphere(rng).normalised();
 }
 
 Vec3 Raytracer::reflect(const Vec3& v, const Vec3& n) const
