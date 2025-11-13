@@ -88,8 +88,14 @@ private:
     bool rendering;
     int current_sample;
 
-    mutable std::mt19937 rng; //TODO might this be too slow?
-    mutable std::uniform_real_distribution<float> dist;
+    mutable uint64_t rng_state;
+
+    float random_float() const { // from https://en.wikipedia.org/wiki/Xorshift
+        rng_state ^= rng_state >> 12;
+        rng_state ^= rng_state << 25;
+        rng_state ^= rng_state >> 27;
+        return float((rng_state * 0x2545F4914F6CDD1DULL) >> 33) / float(1ULL << 31);
+    }
 
     int num_threads = std::thread::hardware_concurrency();
 };

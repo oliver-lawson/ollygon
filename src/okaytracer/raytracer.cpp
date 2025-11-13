@@ -9,8 +9,7 @@ namespace okaytracer {
 Raytracer::Raytracer()
     : rendering(false)
     , current_sample(0)
-    , rng(std::random_device{}())
-    , dist(0.0f, 1.0f)
+    , rng_state(std::random_device{}() | (uint64_t(std::random_device{}()) << 32))
     {}
 
 Raytracer::~Raytracer() {
@@ -82,19 +81,17 @@ void Raytracer::render_one_sample() {
 }
 
 void Raytracer::render_tile(int start_row, int end_row, const CameraBasis& basis) {
-    // ray generation + tracing loop here
-
     for (int j = start_row; j < end_row; j++) {
         for (int i = 0; i < config.width; i++) {
-            // jittered normalized coordinates [0,1]
-            float u = (float(i) + dist(rng)) / float(config.width - 1);
-            float v = (float(j) + dist(rng)) / float(config.height - 1);
+            // random jitter for anti-aliasing
+            float jitter_x = random_float();
+            float jitter_y = random_float();
 
             // convert u,v to pixel position with jitter
             Vec3 pixel_centre = basis.viewport_upper_left +
-                basis.pixel_delta_u * (u * config.width) -
-                basis.pixel_delta_v * (v * config.height);
-
+                basis.pixel_delta_u * (float(i) + jitter_x) - 
+                basis.pixel_delta_v * (float(j) + jitter_y);
+            
             Vec3 ray_dir = (pixel_centre - basis.camera_pos).normalised();
             Ray ray(basis.camera_pos, ray_dir);
 
@@ -327,7 +324,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth) const
         if (depth < config.max_bounces - 2) {  // after a few bounces
             float p = std::max(rec.material.albedo.r,
                 std::max(rec.material.albedo.g, rec.material.albedo.b));
-            if (dist(rng) > p) {
+            if (random_float() > p) {
                 return Colour(0, 0, 0);  // terminate early
             }
             // boost surviving rays
@@ -422,7 +419,7 @@ bool Raytracer::scatter_dielectric(const Ray& ray_in, const Intersection& rec, C
     Vec3 direction;
 
     // schlick approx
-    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > dist(rng)) {
+    if (cannot_refract || reflectance(cos_theta, refraction_ratio) > random_float()) {
         direction = reflect(unit_dir, rec.normal);
     }
     else {
@@ -449,9 +446,9 @@ Vec3 Raytracer::random_in_unit_sphere() const
 {
     while (true) {
         Vec3 p(
-            dist(rng) * 2.0f - 1.0f,
-            dist(rng) * 2.0f - 1.0f,
-            dist(rng) * 2.0f - 1.0f
+            random_float() * 2.0f - 1.0f,
+            random_float() * 2.0f - 1.0f,
+            random_float() * 2.0f - 1.0f
         );
         if (Vec3::dot(p, p) < 1.0f) {
             return p;
