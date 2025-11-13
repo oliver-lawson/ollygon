@@ -162,7 +162,7 @@ void MainWindow::setup_cornell_box() {
     sphere2->primitive = std::make_unique<SpherePrimitive>(0.50f);
     sphere2->transform.position = Vec3(1.415f, 3.480f, -2.335f);
     sphere2->transform.scale = 2.0f;
-    sphere2->material = Material::dielectric(1.5f);
+    sphere2->material = Material::dielectric(1.2f);
     scene.get_root()->add_child(std::move(sphere2));
 
     auto test_quad = std::make_unique<SceneNode>("Quad test (mesh)");
@@ -285,7 +285,7 @@ void MainWindow::save_scene() {
         return;
     }
 
-    if (SceneSerialiser::save_scene(&scene, current_filepath)) {
+    if (SceneSerialiser::save_scene(&scene, viewport->get_camera(), current_filepath)) {
         setWindowTitle("ollygon - " + current_filepath);
     }
     else {
@@ -322,7 +322,7 @@ void MainWindow::load_scene() {
 
     if (filepath.isEmpty()) return;
 
-    if (SceneSerialiser::load_scene(&scene, filepath)) {
+    if (SceneSerialiser::load_scene(&scene, viewport->get_camera(), filepath)) {
         current_filepath = filepath;
         setWindowTitle("ollygon - " + filepath);
         refresh_scene_ui();

@@ -4,6 +4,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QString>
+#include "camera.hpp"
 
 namespace ollygon {
 
@@ -18,10 +19,13 @@ public:
 //scene serialisation ops
 class SceneSerialiser {
 public:
-    static bool save_scene(const Scene* scene, const QString& filepath);
-    static bool load_scene(Scene* scene, const QString& filepath);
+    static bool save_scene(const Scene* scene, const Camera* viewport_camera, const QString& filepath);
+    static bool load_scene(Scene* scene, Camera* viewport_camera, const QString& filepath);
 
 private:
+    static QJsonObject serialise_material(const Material& mat);
+    static Material deserialise_material(const QJsonObject& obj);
+
     static QJsonObject serialise_node(const SceneNode* node);
     static std::unique_ptr<SceneNode> deserialise_node(const QJsonObject& obj);
 
@@ -37,6 +41,9 @@ private:
 
     static QJsonObject serialise_light(const Light* light);
     static std::unique_ptr<Light> deserialise_light(const QJsonObject& obj);
+
+    static QJsonObject serialise_camera(const Camera* camera);
+    static void deserialise_camera(Camera* camera, const QJsonObject& obj);
 
     static QJsonArray vec3_to_json(const Vec3& v);
     static Vec3 json_to_vec3(const QJsonArray& arr);

@@ -33,6 +33,19 @@ public:
     Vec3 get_up() const { return Vec3(0, 1, 0); }
     
     void set_target(const Vec3& new_target) { target = new_target; }
+
+    // getters for serialisation
+    float get_distance() const { return distance; }
+    float get_yaw() const { return yaw; }
+    float get_pitch() const { return pitch; }
+
+    // setters for deserialisation
+    void set_orbit_params(float new_yaw, float new_pitch, float new_distance) {
+        yaw = new_yaw;
+        pitch = new_pitch;
+        distance = new_distance;
+        update_position_from_angles();
+    }
     
 private:
     void update_position_from_angles();
