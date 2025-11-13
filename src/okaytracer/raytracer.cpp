@@ -49,18 +49,23 @@ void Raytracer::render_one_sample() {
     CameraBasis basis = compute_camera_basis();
 
     // split image into horizontal tiles
-    int tiles = num_threads;
-    int rows_per_tile = config.height / tiles;
+    const int tile_size = 64; //TODO profile
+    int tiles_x = (config.width + tile_size - 1) / tile_size;
+    int tiles_y = (config.height + tile_size - 1) / tile_size;
 
     std::vector<std::thread> threads;
 
-    for (int tile = 0; tile < tiles; tile++) {
-        int start_row = tile * rows_per_tile;
-        int end_row = (tile == tiles - 1) ? config.height : start_row + rows_per_tile;
+    for (int ty = 0; ty < tiles_y; ++ty) {
+        for (int tx = 0; tx < tiles_x; ++tx) {
+            int start_x = tx * tile_size;
+            int end_x = std::min(start_x + tile_size, config.width);
+            int start_y = ty * tile_size;
+            int end_y = std::min(start_y + tile_size, config.height);
 
-        threads.emplace_back([this, start_row, end_row, basis]() {
-            render_tile(start_row, end_row, basis);
-            });
+            threads.emplace_back([this, start_x, end_x, start_y, end_y, basis]() {
+                render_tile(start_x, end_x, start_y, end_y, basis);
+                });
+        }
     }
 
     for (auto& t : threads) {
@@ -79,26 +84,29 @@ void Raytracer::render_one_sample() {
     }
 }
 
-void Raytracer::render_tile(int start_row, int end_row, const CameraBasis& basis) {
-    for (int j = start_row; j < end_row; j++) {
-        for (int i = 0; i < config.width; i++) {
+void Raytracer::render_tile(int start_x, int end_x, int start_y, int end_y, const CameraBasis& basis) {
+    for (int y = start_y; y < end_y; ++y) {
+        for (int x = start_x; x < end_x; ++x) {
             // seed rng deterministically per pixel
-            uint64_t pixel_rng = hash_pixel(i, j, config.seed + current_sample);
+            uint64_t pixel_rng = hash_pixel(x, y, config.seed + current_sample);
+
+            float px = float(x) + random_float(pixel_rng);
+            float py = float(y) + random_float(pixel_rng);
 
             // convert u,v to pixel position with jitter
-            Vec3 pixel_centre = basis.viewport_upper_left + 
-                basis.pixel_delta_u * (float(i) + random_float(pixel_rng)) - 
-                basis.pixel_delta_v * (float(j) + random_float(pixel_rng));
-            
+            Vec3 pixel_centre = basis.viewport_upper_left
+                + basis.pixel_delta_u * px
+                - basis.pixel_delta_v * py;
+
             Vec3 ray_dir = (pixel_centre - basis.camera_pos).normalised();
             Ray ray(basis.camera_pos, ray_dir);
-            
+
             Colour pixel_colour = ray_colour(ray, config.max_bounces, pixel_rng);
 
-            int idx = (j * config.width + i) * 3;
-            sample_buffer[idx + 0] = pixel_colour.r;
-            sample_buffer[idx + 1] = pixel_colour.g;
-            sample_buffer[idx + 2] = pixel_colour.b;
+            int pixel_index = (y * config.width + x) * 3;
+            sample_buffer[pixel_index + 0] += pixel_colour.r;
+            sample_buffer[pixel_index + 1] += pixel_colour.g;
+            sample_buffer[pixel_index + 2] += pixel_colour.b;
         }
     }
 }

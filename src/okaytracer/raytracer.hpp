@@ -53,7 +53,7 @@ public:
 
     void render_one_sample();
 
-    void render_tile(int start_row, int end_row, const CameraBasis& basis);
+    void render_tile(int start_x, int end_x, int start_y, int end_y, const CameraBasis& basis);
 
     uint64_t hash_pixel(int x, int y, uint64_t seed) const;
 
