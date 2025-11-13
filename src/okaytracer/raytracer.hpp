@@ -28,6 +28,13 @@ struct RenderConfig {
     }
 };
 
+struct CameraBasis {
+    Vec3 viewport_upper_left;
+    Vec3 pixel_delta_u;
+    Vec3 pixel_delta_v;
+    Vec3 camera_pos;
+};
+
 class Raytracer {
 public:
     Raytracer();
@@ -45,9 +52,11 @@ public:
 
     void render_one_sample();
 
-    void render_tile(int start_row, int end_row);
+    void render_tile(int start_row, int end_row, const CameraBasis& basis);
 
 private:
+    CameraBasis compute_camera_basis() const;
+
     bool intersect(const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_sphere(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_quad(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;

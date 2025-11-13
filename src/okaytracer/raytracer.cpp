@@ -48,6 +48,8 @@ void Raytracer::render_one_sample() {
 
     std::fill(sample_buffer.begin(), sample_buffer.end(), 0.0f);
 
+    CameraBasis basis = compute_camera_basis();
+
     // split image into horizontal tiles
     int tiles = num_threads;
     int rows_per_tile = config.height / tiles;
@@ -58,8 +60,8 @@ void Raytracer::render_one_sample() {
         int start_row = tile * rows_per_tile;
         int end_row = (tile == tiles - 1) ? config.height : start_row + rows_per_tile;
 
-        threads.emplace_back([this, start_row, end_row]() {
-            render_tile(start_row, end_row);
+        threads.emplace_back([this, start_row, end_row, basis]() {
+            render_tile(start_row, end_row, basis);
             });
     }
 
@@ -79,37 +81,22 @@ void Raytracer::render_one_sample() {
     }
 }
 
-void Raytracer::render_tile(int start_row, int end_row) {
+void Raytracer::render_tile(int start_row, int end_row, const CameraBasis& basis) {
     // ray generation + tracing loop here
 
     for (int j = start_row; j < end_row; j++) {
         for (int i = 0; i < config.width; i++) {
+            // jittered normalized coordinates [0,1]
             float u = (float(i) + dist(rng)) / float(config.width - 1);
-            float v = (float(j) + dist(rng)) / float(config.height- 1);
+            float v = (float(j) + dist(rng)) / float(config.height - 1);
 
-            //generate ray from camera
-            Vec3 forward = (camera.get_target() - camera.get_pos()).normalised();
-            Vec3 right = Vec3::cross(forward, camera.get_up()).normalised();
-            Vec3 up = Vec3::cross(right, forward);
+            // convert u,v to pixel position with jitter
+            Vec3 pixel_centre = basis.viewport_upper_left +
+                basis.pixel_delta_u * (u * config.width) -
+                basis.pixel_delta_v * (v * config.height);
 
-            float aspect = float(config.width) / float(config.height);
-            float fov_rad = 45.0f * 3.1459f / 180.0f;
-            float h = std::tan(fov_rad * 0.5f);
-            float viewport_height = 2.0f * h;
-            float viewport_width = viewport_height * aspect;
-
-            Vec3 viewport_u = right * viewport_width;
-            Vec3 viewport_v = up * viewport_height;
-
-            Vec3 pixel_delta_u = viewport_u / float(config.width);
-            Vec3 pixel_delta_v = viewport_v / float(config.height);
-
-            Vec3 viewport_upper_left = camera.get_pos() + forward - viewport_u * 0.5f + viewport_v * 0.5f;
-
-            Vec3 pixel_centre = viewport_upper_left + pixel_delta_u * (float(i) + 0.5f) - pixel_delta_v * (float(j) + 0.5f);
-
-            Vec3 ray_dir = (pixel_centre - camera.get_pos()).normalised();
-            Ray ray(camera.get_pos(), ray_dir);
+            Vec3 ray_dir = (pixel_centre - basis.camera_pos).normalised();
+            Ray ray(basis.camera_pos, ray_dir);
 
             Colour pixel_colour = ray_colour(ray, config.max_bounces);
 
@@ -121,7 +108,29 @@ void Raytracer::render_tile(int start_row, int end_row) {
     }
 }
 
-// == private methods ==
+CameraBasis Raytracer::compute_camera_basis() const {
+    Vec3 forward = (camera.get_target() - camera.get_pos()).normalised();
+    Vec3 right = Vec3::cross(forward, camera.get_up()).normalised();
+    Vec3 up = Vec3::cross(right, forward);
+
+    float aspect = float(config.width) / float(config.height);
+    float fov_rad = 45.0f * 3.1459f / 180.0f;
+    float h = std::tan(fov_rad * 0.5f);
+    float viewport_height = 2.0f * h;
+    float viewport_width = viewport_height * aspect;
+
+    Vec3 viewport_u = right * viewport_width;
+    Vec3 viewport_v = up * viewport_height;
+
+    CameraBasis basis;
+    basis.viewport_upper_left = camera.get_pos() + forward - viewport_u * 0.5f + viewport_v * 0.5f;
+    basis.pixel_delta_u = viewport_u / float(config.width);
+    basis.pixel_delta_v = viewport_v / float(config.height);
+    basis.camera_pos = camera.get_pos();
+    return basis;
+}
+
+// == render methods ==
 bool Raytracer::intersect(const Ray& ray, float t_min, float t_max, Intersection& rec) const
 {
     Intersection temp_rec;
