@@ -23,6 +23,10 @@ struct Colour {
         return Colour(r * other.r, g * other.g, b * other.b);
     }
 
+    Colour operator/(const Colour& other) const {
+        return Colour(r / other.r, g / other.g, b / other.b);
+    }
+
     void clamp() {
         if (r < 0) r = 0; if (r > 1) r =1;
         if (g < 0) g = 0; if (g > 1) g =1;

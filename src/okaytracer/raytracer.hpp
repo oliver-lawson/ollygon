@@ -6,6 +6,8 @@
 #include <vector>
 #include <cstdint>
 #include <random>
+#include <thread>
+#include <mutex>
 
 
 namespace ollygon {
@@ -43,6 +45,8 @@ public:
 
     void render_one_sample();
 
+    void render_tile(int start_row, int end_row);
+
 private:
     bool intersect(const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_sphere(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
@@ -77,6 +81,8 @@ private:
 
     mutable std::mt19937 rng; //TODO might this be too slow?
     mutable std::uniform_real_distribution<float> dist;
+
+    int num_threads = std::thread::hardware_concurrency();
 };
 
 } // namespace okaytracer
