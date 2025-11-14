@@ -88,7 +88,7 @@ signals:
 private:
     void rebuild_ui(SceneNode* node);
     void create_transform_controls(SceneNode* node, QVBoxLayout* layout);
-    void create_mesh_controls(SceneNode* node, QVBoxLayout* layout);
+    void create_material_controls(SceneNode* node, QVBoxLayout* layout);
     void create_light_controls(SceneNode* node, QVBoxLayout* layout);
 
     void add_vec3_row(const QString& label, Vec3& vec, float min_val, float max_val, float speed, QGridLayout* grid, int row);
