@@ -3,6 +3,7 @@
 #include <QMainWindow>
 #include <QGroupBox>
 #include <QCheckBox>
+#include <QComboBox>
 
 namespace ollygon {
 
@@ -154,7 +155,72 @@ void PropertiesPanel::create_material_controls(SceneNode* node, QVBoxLayout* lay
     grid->setSpacing(4);
     grid->setContentsMargins(7, 10, 7, 7);
 
-    add_colour_row("Albedo", node->albedo, 0.0f, 1.0f, 0.01f, grid, 0);
+    int row = 0;
+
+    //mat type dropdown
+    QLabel* type_label = new QLabel("Type");
+    type_label->setMinimumWidth(60);
+    grid->addWidget(type_label, row, 0);
+
+    QComboBox* type_combo = new QComboBox();
+    type_combo->addItem("Lambertian", static_cast<int>(MaterialType::Lambertian));
+    type_combo->addItem("Metal", static_cast<int>(MaterialType::Metal));
+    type_combo->addItem("Dielectric", static_cast<int>(MaterialType::Dielectric));
+    type_combo->addItem("Emissive", static_cast<int>(MaterialType::Emissive));
+    type_combo->addItem("Chequerboard", static_cast<int>(MaterialType::Chequerboard));
+
+    type_combo->setCurrentIndex(static_cast<int>(node->material.type));
+
+    connect(type_combo, QOverload<int>::of(&QComboBox::currentIndexChanged), 
+        [node, this](int index) {
+            node->material.type = static_cast<MaterialType>(index);
+            // doing it this way to defer ui rebuild until after signal completes, 
+            // otherwise was getting deleted memory reads from QComboBox being destroyed whist
+            // still in its signal handler.  bc of rebuild_ui happening deleting all widgets
+            // including this one sending the signal. seems to be safe
+            // with Qt::QueuedConnection
+            QMetaObject::invokeMethod(this, [node, this]() {
+                rebuild_ui(node);
+                if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+                    if (auto* viewport = main_win->centralWidget()) {
+                        viewport->update();
+                    }
+                }
+            }, Qt::QueuedConnection);
+        });
+    grid->addWidget(type_combo, row++, 1, 1, 3);
+
+    // albedo (for most material types)
+    if (node->material.type != MaterialType::Dielectric) {
+        add_colour_row("Albedo", node->material.albedo, 0.0f, 1.0f, 0.01f, grid, row++);
+
+        // sync with legacy albedo field TEMP
+        connect(this, &PropertiesPanel::properties_changed, [node]() {
+            node->albedo = node->material.albedo;
+            });
+    }
+
+    // emission
+    if (node->material.type == MaterialType::Emissive) {
+        add_colour_row("Emission", node->material.emission, 0.0f, 50.0f, 0.1f, grid, row++);
+    }
+
+    // metal roughness
+    if (node->material.type == MaterialType::Metal) {
+        add_float_row("Roughness", node->material.roughness, 0.0f, 1.0f, 0.01f, grid, row++);
+    }
+
+    // IOR
+    if (node->material.type == MaterialType::Dielectric) {
+        add_float_row("IOR", node->material.ior, 1.0f, 3.0f, 0.01f, grid, row++);
+    }
+
+    // chequerboard specific
+    if (node->material.type == MaterialType::Chequerboard) {
+        add_colour_row("Colour A", node->material.chequerboard_colour_a, 0.0f, 1.0f, 0.01f, grid, row++);
+        add_colour_row("Colour B", node->material.chequerboard_colour_b, 0.0f, 1.0f, 0.01f, grid, row++);
+        add_float_row("Scale", node->material.chequerboard_scale, 0.1f, 20.0f, 0.1f, grid, row++);
+    }
 
     layout->addWidget(material_group);
 }
@@ -219,6 +285,7 @@ void PropertiesPanel::add_vec3_row(const QString& label, Vec3& vec, float min_va
                 viewport->update();
             }
         }
+        emit properties_changed();
     });
 
     DragSpinBox* y_box = new DragSpinBox(wrapper);
@@ -233,6 +300,7 @@ void PropertiesPanel::add_vec3_row(const QString& label, Vec3& vec, float min_va
                 viewport->update();
             }
         }
+        emit properties_changed();
     });
 
     DragSpinBox* z_box = new DragSpinBox(wrapper);
@@ -247,6 +315,7 @@ void PropertiesPanel::add_vec3_row(const QString& label, Vec3& vec, float min_va
                 viewport->update();
             }
         }
+        emit properties_changed();
     });
 
     BorderOverlay* overlay = new BorderOverlay(wrapper);
@@ -277,6 +346,7 @@ void PropertiesPanel::add_colour_row(const QString& label, Colour& colour, float
                 viewport->update();
             }
         }
+        emit properties_changed();
         });
 
     DragSpinBox* g_box = new DragSpinBox(wrapper);
@@ -291,6 +361,7 @@ void PropertiesPanel::add_colour_row(const QString& label, Colour& colour, float
                 viewport->update();
             }
         }
+        emit properties_changed();
         });
 
     DragSpinBox* b_box = new DragSpinBox(wrapper);
@@ -305,6 +376,7 @@ void PropertiesPanel::add_colour_row(const QString& label, Colour& colour, float
                 viewport->update();
             }
         }
+        emit properties_changed();
         });
 
     BorderOverlay* overlay = new BorderOverlay(wrapper);
@@ -329,6 +401,7 @@ void PropertiesPanel::add_float_row(const QString& label, float& value, float mi
                 viewport->update();
             }
         }
+        emit properties_changed();
         });
     grid->addWidget(spin_box, row, 1, 1, 3);  // span 3 columns
 }
