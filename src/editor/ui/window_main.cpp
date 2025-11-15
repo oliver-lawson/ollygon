@@ -27,7 +27,7 @@ MainWindow::MainWindow(QWidget* parent)
     setWindowTitle("ollygon");
     resize(1280, 720);
 
-    setup_cornell_box();
+    setup_scene_cornell_box();
     setup_ui();
     create_menus();
     show_raytracer_window();
@@ -45,7 +45,7 @@ void MainWindow::setup_ui() {
     create_dock_widgets();
 }
 
-void MainWindow::setup_cornell_box() {
+void MainWindow::setup_scene_cornell_box() {
     // cornell box dimensions from Shirley, flipped 180deg and recentred on a different ocrner
     Colour red(0.65f, 0.05f, 0.05f);
     Colour white(0.73f, 0.73f, 0.73f);
@@ -188,6 +188,142 @@ void MainWindow::setup_cornell_box() {
     test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
     scene.get_root()->add_child(std::move(test_quad));
+}
+
+void MainWindow::setup_scene_stress_test() {
+    // cornell box walls/light
+    Colour red(0.65f, 0.05f, 0.05f);
+    Colour white(0.73f, 0.73f, 0.73f);
+    Colour green(0.12f, 0.45f, 0.15f);
+    Colour light_emission(15.0f, 15.0f, 15.0f);
+
+    float room_size = 5.55f;
+    float half_room = room_size * 0.5f;
+
+    auto left_wall = std::make_unique<SceneNode>("Left Wall");
+    left_wall->node_type = NodeType::Primitive;
+    left_wall->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(0, 0, -half_room),
+        Vec3(0, half_room, 0)
+    );
+    left_wall->transform.position = Vec3(0, half_room, -half_room);
+    left_wall->material = Material::lambertian(green);
+    left_wall->albedo = green;
+    scene.get_root()->add_child(std::move(left_wall));
+
+    auto right_wall = std::make_unique<SceneNode>("Right Wall");
+    right_wall->node_type = NodeType::Primitive;
+    right_wall->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(0, half_room, 0),
+        Vec3(0, 0, -half_room)
+    );
+    right_wall->transform.position = Vec3(room_size, half_room, -half_room);
+    right_wall->material = Material::lambertian(red);
+    right_wall->albedo = red;
+    scene.get_root()->add_child(std::move(right_wall));
+
+    auto floor = std::make_unique<SceneNode>("Floor");
+    floor->node_type = NodeType::Primitive;
+    floor->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(-half_room, 0, 0),
+        Vec3(0, 0, half_room)
+    );
+    floor->transform.position = Vec3(half_room, 0, -half_room);
+    floor->material = Material::lambertian(white);
+    floor->albedo = white;
+    scene.get_root()->add_child(std::move(floor));
+
+    auto ceiling = std::make_unique<SceneNode>("Ceiling");
+    ceiling->node_type = NodeType::Primitive;
+    ceiling->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(half_room, 0, 0),
+        Vec3(0, 0, half_room)
+    );
+    ceiling->transform.position = Vec3(half_room, room_size, -half_room);
+    ceiling->material = Material::lambertian(white);
+    ceiling->albedo = white;
+    scene.get_root()->add_child(std::move(ceiling));
+
+    auto back_wall = std::make_unique<SceneNode>("Back Wall");
+    back_wall->node_type = NodeType::Primitive;
+    back_wall->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(0, half_room, 0),
+        Vec3(-half_room, 0, 0)
+    );
+    back_wall->transform.position = Vec3(half_room, half_room, -room_size);
+    back_wall->material = Material::lambertian(white);
+    back_wall->albedo = white;
+    scene.get_root()->add_child(std::move(back_wall));
+
+    auto light_node = std::make_unique<SceneNode>("Area Light");
+    light_node->node_type = NodeType::Light;
+    light_node->light = std::make_unique<Light>();
+    light_node->light->type = LightType::Area;
+    light_node->light->colour = light_emission;
+    light_node->light->intensity = 1.0f;
+    light_node->light->is_area_light = true;
+
+    light_node->primitive = std::make_unique<QuadPrimitive>(
+        Vec3(0.65f, 0, 0),
+        Vec3(0, 0, 0.525f)
+    );
+    light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
+    light_node->material = Material::emissive(light_emission);
+    light_node->albedo = light_emission;
+    scene.get_root()->add_child(std::move(light_node));
+
+    // spam 500 random objects
+    std::random_device rd;
+    std::mt19937 seed(rd());
+    std::uniform_real_distribution<float> pos_x(0.3f, room_size - 0.3f);
+    std::uniform_real_distribution<float> pos_y(0.3f, room_size - 0.3f);
+    std::uniform_real_distribution<float> pos_z(-room_size + 0.3f, -0.3f);
+    std::uniform_real_distribution<float> size_dist(0.08f, 0.25f);
+    std::uniform_real_distribution<float> colour_dist(0.1f, 0.95f);
+    std::uniform_int_distribution<int> shape_dist(0, 1); // 0=sphere, 1=cube
+    std::uniform_int_distribution<int> material_dist(0, 2); // 0=lambertian, 1=metal, 2=dielectric
+
+    for (int i = 0; i < 500; i++) {
+        std::string name = "Stress_" + std::to_string(i);
+        auto node = std::make_unique<SceneNode>(name);
+        node->node_type = NodeType::Primitive;
+
+        // random shape
+        bool is_sphere = (shape_dist(seed) == 0);
+        float obj_size = size_dist(seed);
+
+        if (is_sphere) {
+            node->primitive = std::make_unique<SpherePrimitive>(obj_size);
+        }
+        else {
+            Vec3 dimensions(obj_size, obj_size, obj_size);
+            node->primitive = std::make_unique<CuboidPrimitive>(dimensions);
+        }
+
+        // random position
+        node->transform.position = Vec3(pos_x(seed), pos_y(seed), pos_z(seed));
+
+        // random colour
+        Colour random_colour(colour_dist(seed), colour_dist(seed), colour_dist(seed));
+        node->albedo = random_colour;
+
+        // random material
+        int mat_type = material_dist(seed);
+        switch (mat_type) {
+        case 0:
+            node->material = Material::lambertian(random_colour);
+            break;
+        case 1:
+            node->material = Material::metal(random_colour);
+            break;
+        case 2:
+            node->material = Material::dielectric(1.5f);
+            node->albedo = Colour(1.0f, 1.0f, 1.0f);
+            break;
+        }
+
+        scene.get_root()->add_child(std::move(node));
+    }
 }
 
 void MainWindow::create_dock_widgets() {
