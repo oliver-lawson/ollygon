@@ -53,6 +53,8 @@ namespace ollygon {
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE); // TODO add control
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
         shader_program = new QOpenGLShaderProgram(this);
 
@@ -67,8 +69,10 @@ namespace ollygon {
 
         out vec3 frag_normal;
         out vec3 frag_pos;
+        out vec3 frag_local_pos;
 
         void main() {
+            frag_local_pos = position;
             frag_pos = vec3(model * vec4(position, 1.0));
             frag_normal = mat3(transpose(inverse(model))) * normal;
             gl_Position = projection * view * vec4(frag_pos, 1.0);
@@ -79,31 +83,88 @@ namespace ollygon {
         #version 330 core
         in vec3 frag_normal;	
         in vec3 frag_pos;
+        in vec3 frag_local_pos;
 
-        uniform vec3 object_colour;
         uniform vec3 light_pos;
         uniform vec3 view_pos;
         uniform bool is_selected;
 
+        // material properties
+        uniform int material_type;  // 0=lambertian, 1=metal, 2=dielec, 3=emissive, 4=chequer
+        uniform vec3 albedo;
+        uniform vec3 emission;
+        uniform float roughness;
+        uniform float metallic;
+        uniform vec3 chequer_colour_a;
+        uniform vec3 chequer_colour_b;
+        uniform float chequer_scale;
+
         out vec4 FragColor;
 
+        vec3 get_material_colour() {
+            if (material_type == 4) { // chequer
+                //vec3 scaled_pos = frag_local_pos * chequer_scale;
+                vec3 scaled_pos = frag_pos * chequer_scale;
+                float pattern = mod(floor(scaled_pos.x) + floor(scaled_pos.y) + floor(scaled_pos.z), 2.0);
+                return mix(chequer_colour_a, chequer_colour_b, pattern);
+            }
+            if (material_type ==2){ // dielectric override TEMP
+                return vec3(0.8,0.8,0.8);
+            }
+            return albedo;
+        }
+
         void main() {
+            vec3 base_colour = get_material_colour();
             vec3 norm = normalize(frag_normal);
+
+            // emissive-only mats just glow
+            if (material_type == 3) {
+                vec3 result = emission;
+                if (is_selected) {
+                    result = mix(result, vec3(1.0, 0.9, 0.4), 0.3);
+                }
+                FragColor = vec4(result, 1.0);
+                return;
+            }
+            
+            // basic shared lighting for non-emissives
             vec3 light_dir = normalize(light_pos - frag_pos);
+            float norm_dot_lightdir = max(dot(norm, light_dir), 0.0);
+            vec3 view_dir = normalize(view_pos - frag_pos);
+            vec3 halfway = normalize(light_dir + view_dir);
+            
+            // diffuse
+            vec3 diffuse = norm_dot_lightdir * base_colour;
+            
+            // specular
+            float spec_strength = 0.0;
+            if (material_type == 1) { // metal
+                float roughness_sq = roughness * roughness;
+                float spec_power = mix(128.0, 8.0, roughness_sq);
+                spec_strength = pow(max(dot(norm, halfway), 0.0), spec_power) * (1.0 - roughness);
+            } else if (material_type == 2) { // dielectric
+                spec_strength = pow(max(dot(norm, halfway), 0.0), 64.0) * 0.8;
+            }
 
-            float n_dot_dir = max(dot(norm, light_dir), 0.0);
-            vec3 diffuse = n_dot_dir * object_colour;
+            vec3 specular = vec3(spec_strength);
+            
+            vec3 ambient = base_colour * 0.3;
 
-            vec3 ambient = object_colour * 0.3;
+            vec3 result = ambient + diffuse + specular;
 
-            vec3 result = ambient + diffuse;
+            // alpha for dielectrics
+            float alpha = 1.0;
+            if (material_type == 2) {
+                alpha = 0.78;
+            }
             
             // highlight selected objects
             if (is_selected) {
                 result = mix(result, vec3(1.0, 0.9, 0.4), 0.3);
             }
             
-            FragColor = vec4(result, 1.0);
+            FragColor = vec4(result, alpha);
         }
     )";
 
@@ -224,19 +285,25 @@ namespace ollygon {
 
         shader_program->setUniformValue("view", QMatrix4x4(view.floats()).transposed());
         shader_program->setUniformValue("projection", QMatrix4x4(projection.floats()).transposed());
-        shader_program->setUniformValue("light_pos", QVector3D(3.43f, 5.54f, 3.32f));
+        // TEMP
+        // light pos is baked to cornell area light pos for now
+        shader_program->setUniformValue("light_pos", QVector3D(2.775f, 5.54f, -2.775f));
         shader_program->setUniformValue("view_pos", QVector3D(cam_pos.x, cam_pos.y, cam_pos.z));
 
         vao.bind();
 
-        // render each node
-        render_node(scene->get_root());
+        // render each node. opaque first
+        render_node(scene->get_root(), false);
+        // then render the transparent ones
+        glDepthMask(GL_FALSE);
+        render_node(scene->get_root(), true);
+        glDepthMask(GL_TRUE);
 
         vao.release();
         shader_program->release();
     }
 
-    void PanelViewport::render_node(SceneNode* node) {
+    void PanelViewport::render_node(SceneNode* node, bool render_transparent) {
         if (!node || !node->visible) return;
 
         bool is_selected = selection_handler && (selection_handler->get_selected() == node);
@@ -245,6 +312,18 @@ namespace ollygon {
             (node->geo && node->node_type == NodeType::Mesh);
 
         if (has_renderable_object) {
+            // is this a transparent object?
+            bool is_transparent = (node->material.type == MaterialType::Dielectric);
+
+            // skip if transparency doesn't match
+            if (is_transparent != render_transparent) {
+                //recurse to children
+                for (auto& child : node->children) {
+                    render_node(child.get(), render_transparent);
+                }
+                return;
+            }
+
             // check if we have geo for this node
             auto it = geometry_ranges.find(node);
             if (it != geometry_ranges.end()) {
@@ -262,11 +341,30 @@ namespace ollygon {
                     node->transform.scale.z
                 );
 
-                model = model * scale;  // apply scale in local space, then translate to world
+                model = model * scale;
 
                 shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());
-                shader_program->setUniformValue("object_colour",
-                    QVector3D(node->albedo.r, node->albedo.g, node->albedo.b));
+
+                // set mat properties
+                shader_program->setUniformValue("material_type", static_cast<int>(node->material.type));
+                shader_program->setUniformValue("albedo",
+                    QVector3D(node->material.albedo.r, node->material.albedo.g, node->material.albedo.b));
+                shader_program->setUniformValue("emission",
+                    QVector3D(node->material.emission.r, node->material.emission.g, node->material.emission.b));
+                shader_program->setUniformValue("roughness", node->material.roughness);
+                shader_program->setUniformValue("metallic", node->material.metallic);
+
+                // chequerboard properties
+                shader_program->setUniformValue("chequer_colour_a",
+                    QVector3D(node->material.chequerboard_colour_a.r,
+                        node->material.chequerboard_colour_a.g,
+                        node->material.chequerboard_colour_a.b));
+                shader_program->setUniformValue("chequer_colour_b",
+                    QVector3D(node->material.chequerboard_colour_b.r,
+                        node->material.chequerboard_colour_b.g,
+                        node->material.chequerboard_colour_b.b));
+                shader_program->setUniformValue("chequer_scale", node->material.chequerboard_scale);
+
                 shader_program->setUniformValue("is_selected", is_selected);
 
                 glDrawElements(
@@ -279,7 +377,7 @@ namespace ollygon {
         }
 
         for (auto& child : node->children) {
-            render_node(child.get());
+            render_node(child.get(), render_transparent);
         }
     }
 

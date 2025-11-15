@@ -57,14 +57,14 @@ void RaytracerWindow::setup_ui() {
 
     QLabel* samples_label = new QLabel("Samples:");
     samples_spinbox = new QSpinBox();
-    samples_spinbox->setRange(1, 1000);
+    samples_spinbox->setRange(1, 10000);
     samples_spinbox->setValue(render_config.samples_per_pixel);
     controls_layout->addWidget(samples_label);
     controls_layout->addWidget(samples_spinbox);
 
     QLabel* bounces_label = new QLabel("Max Bounces:");
     bounces_spinbox = new QSpinBox();
-    bounces_spinbox->setRange(1, 50);
+    bounces_spinbox->setRange(1, 500);
     bounces_spinbox->setValue(render_config.max_bounces);
     controls_layout->addWidget(bounces_label);
     controls_layout->addWidget(bounces_spinbox);

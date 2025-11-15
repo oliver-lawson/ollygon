@@ -44,7 +44,7 @@ protected:
 
 private:
     void rebuild_scene_geometry();
-    void render_node(SceneNode* node);
+    void render_node(SceneNode* node, bool render_transparent);
 
     Scene* scene;
     Camera camera;

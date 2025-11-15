@@ -162,7 +162,7 @@ void MainWindow::setup_cornell_box() {
     sphere2->primitive = std::make_unique<SpherePrimitive>(0.50f);
     sphere2->transform.position = Vec3(1.415f, 3.480f, -2.335f);
     sphere2->transform.scale = 2.0f;
-    sphere2->material = Material::dielectric(1.2f);
+    sphere2->material = Material::dielectric(2.85f);
     scene.get_root()->add_child(std::move(sphere2));
 
     auto test_quad = std::make_unique<SceneNode>("Quad test (mesh)");
@@ -183,7 +183,7 @@ void MainWindow::setup_cornell_box() {
 
     test_quad->geo->add_tri(2, 1, 0);
     test_quad->geo->add_tri(2, 3, 1);
-    test_quad->material = Material::lambertian(Colour(0.9f, 0.01f, 0.95f));
+    test_quad->material = Material::lambertian(Colour(0.07f, 0.01f, 0.95f));
     test_quad->albedo = Colour(0.9f, 0.01f, 0.95f);
     test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
