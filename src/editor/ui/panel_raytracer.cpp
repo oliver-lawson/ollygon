@@ -5,6 +5,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QScrollArea>
+#include <QColorSpace>
 #include <cmath>
 
 namespace ollygon {
@@ -140,6 +141,7 @@ void RaytracerWindow::start_render() {
 
     // prepare display image
     display_image = QImage(render_config.width, render_config.height, QImage::Format_RGB32);
+    display_image.setColorSpace(QColorSpace::SRgb);
 
     render_button->setEnabled(false);
     stop_button->setEnabled(true);
