@@ -60,6 +60,45 @@ struct Mat4 {
         return mat;
     }
 
+    static Mat4 rotate_x(float angle_rad) {
+        Mat4 mat;
+        float c = std::cos(angle_rad);
+        float s = std::sin(angle_rad);
+        mat.m[5] = c;
+        mat.m[6] = s;
+        mat.m[9] = -s;
+        mat.m[10] = c;
+        return mat;
+    }
+
+    static Mat4 rotate_y(float angle_rad) {
+        Mat4 mat;
+        float c = std::cos(angle_rad);
+        float s = std::sin(angle_rad);
+        mat.m[0] = c;
+        mat.m[2] = -s;
+        mat.m[8] = s;
+        mat.m[10] = c;
+        return mat;
+    }
+
+    static Mat4 rotate_z(float angle_rad) {
+        Mat4 mat;
+        float c = std::cos(angle_rad);
+        float s = std::sin(angle_rad);
+        mat.m[0] = c;
+        mat.m[1] = s;
+        mat.m[4] = -s;
+        mat.m[5] = c;
+        return mat;
+    }
+
+    // create rotation matrix from euler angles in rads
+    //  applies in order: Z, Y, X
+    static Mat4 rotate_euler(float x_rad, float y_rad, float z_rad) {
+        return rotate_z(z_rad) * rotate_y(y_rad) * rotate_x(x_rad);
+    }
+    
     // matrix inverse, affine transform only
     Mat4 inverse() const {
         Mat4 inv;
