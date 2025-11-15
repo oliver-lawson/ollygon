@@ -163,9 +163,6 @@ bool Raytracer::intersect(const Ray& ray, float t_min, float t_max, Intersection
         case RenderPrimitive::Type::Quad:
             hit = intersect_quad(prim, ray, t_min, closest_so_far, temp_rec);
             break;
-        case RenderPrimitive::Type::Cuboid:
-            hit = intersect_cuboid(prim, ray, t_min, closest_so_far, temp_rec);
-            break;
         case RenderPrimitive::Type::Triangle:
             hit = intersect_triangle(prim, ray, t_min, closest_so_far, temp_rec);
             break;
@@ -236,44 +233,6 @@ bool Raytracer::intersect_quad( const RenderPrimitive& prim, const Ray& ray, flo
     rec.point = hit_point;
     rec.set_face_normal(ray, prim.quad_normal);
     rec.material = prim.material;
-
-    return true;
-}
-
-bool Raytracer::intersect_cuboid( const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec ) const
-{
-    Vec3 inv_dir = Vec3(
-        std::abs(ray.direction.x) > 1e-6f ? 1.0f / ray.direction.x : 1e6f,
-        std::abs(ray.direction.y) > 1e-6f ? 1.0f / ray.direction.y : 1e6f,
-        std::abs(ray.direction.z) > 1e-6f ? 1.0f / ray.direction.z : 1e6f
-    );
-
-    float t1 = (prim.cuboid_min.x - ray.origin.x) * inv_dir.x;
-    float t2 = (prim.cuboid_max.x - ray.origin.x) * inv_dir.x;
-    float t3 = (prim.cuboid_min.y - ray.origin.y) * inv_dir.y;
-    float t4 = (prim.cuboid_max.y - ray.origin.y) * inv_dir.y;
-    float t5 = (prim.cuboid_min.z - ray.origin.z) * inv_dir.z;
-    float t6 = (prim.cuboid_max.z - ray.origin.z) * inv_dir.z;
-
-    float tmin = std::max(std::max(std::min(t1, t2), std::min(t3, t4)), std::min(t5, t6));
-    float tmax = std::min(std::min(std::max(t1, t2), std::max(t3, t4)), std::max(t5, t6));
-
-    if (tmax < 0.0f || tmin > tmax || tmin < t_min || tmin > t_max) {
-        return false;
-    }
-
-    rec.t = tmin;
-    rec.point = ray.at(rec.t);
-    rec.material = prim.material;
-
-    //determine face normal
-    const float epsilon = 0.0001f;
-    if (std::abs(tmin - t1) < epsilon) rec.set_face_normal(ray, Vec3(-1, 0, 0));
-    else if (std::abs(tmin - t2) < epsilon) rec.set_face_normal(ray, Vec3(1, 0, 0));
-    else if (std::abs(tmin - t3) < epsilon) rec.set_face_normal(ray, Vec3(0, -1, 0));
-    else if (std::abs(tmin - t4) < epsilon) rec.set_face_normal(ray, Vec3(0, 1, 0));
-    else if (std::abs(tmin - t5) < epsilon) rec.set_face_normal(ray, Vec3(0, 0, -1));
-    else rec.set_face_normal(ray, Vec3(0, 0, 1));
 
     return true;
 }

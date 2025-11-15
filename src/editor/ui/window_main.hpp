@@ -23,7 +23,8 @@ public:
 
 private:
     void setup_ui();
-    void setup_cornell_box();
+    void setup_scene_cornell_box();
+    void setup_scene_stress_test();
     void create_dock_widgets();
     void create_menus();
     void setup_shortcuts();

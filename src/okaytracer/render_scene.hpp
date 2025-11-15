@@ -14,7 +14,6 @@ struct RenderPrimitive {
     enum class Type {
         Sphere,
         Quad,
-        Cuboid,
         Triangle
     };
 
@@ -29,10 +28,6 @@ struct RenderPrimitive {
     Vec3 quad_u;
     Vec3 quad_v;
     Vec3 quad_normal;
-
-    //cuboid data
-    Vec3 cuboid_min;
-    Vec3 cuboid_max;
 
     //tri data (world space)
     Vec3 tri_v0, tri_v1, tri_v2;
@@ -65,9 +60,11 @@ private:
         const SceneNode* node,
         const QuadPrimitive* quad
     );
-    static RenderPrimitive create_cuboid_primitive(
+    // cuboids are converted to tris
+    static void add_cuboid_as_triangles(
         const SceneNode* node,
-        const CuboidPrimitive* cuboid
+        const CuboidPrimitive* cuboid,
+        std::vector<RenderPrimitive>& prims
     );
 
     static void add_mesh_primitives(

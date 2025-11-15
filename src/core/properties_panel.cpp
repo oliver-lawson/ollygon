@@ -129,7 +129,8 @@ void PropertiesPanel::create_transform_controls(SceneNode* node, QVBoxLayout* la
     grid->setContentsMargins(7,10,7,7);
 
     add_vec3_row("Position", node->transform.position, -100.0f, 100.0f, 0.01f, grid, 0);
-    add_vec3_row("Scale", node->transform.scale, 0.01f, 10.0f, 0.01f, grid, 1);
+    add_vec3_row("Rotation", node->transform.rotation, -180.0f, 180.0f, 0.1f, grid, 1);
+    add_vec3_row("Scale", node->transform.scale, 0.01f, 10.0f, 0.01f, grid, 2);
     //TEMP no rot until we support it
 
     layout->addWidget(transform_group);

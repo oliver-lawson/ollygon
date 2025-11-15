@@ -29,22 +29,23 @@ void RenderScene::add_node_recursive(const SceneNode* node, std::vector<RenderPr
                 node,
                 static_cast<const SpherePrimitive*>(node->primitive.get())
             );
+            render_prims.push_back(render_prim);
             break;
         case PrimitiveType::Quad:
             render_prim = create_quad_primitive(
                 node,
                 static_cast<const QuadPrimitive*>(node->primitive.get())
             );
+            render_prims.push_back(render_prim);
             break;
         case PrimitiveType::Cuboid:
-            render_prim = create_cuboid_primitive(
+            add_cuboid_as_triangles(
                 node,
-                static_cast<const CuboidPrimitive*>(node->primitive.get())
+                static_cast<const CuboidPrimitive*>(node->primitive.get()), render_prims
             );
             break;
         }
 
-        render_prims.push_back(render_prim);
     }
 
     //add meshes
@@ -66,6 +67,7 @@ void RenderScene::add_node_recursive(const SceneNode* node, std::vector<RenderPr
             if (node->light) {
                 render_prim.material = Material::emissive(node->light->colour * node->light->intensity);
             }
+            render_prims.push_back(render_prim);
             break;
         default: break;
         }
@@ -79,6 +81,30 @@ void RenderScene::add_node_recursive(const SceneNode* node, std::vector<RenderPr
     }
 }
 
+// == utils ==
+// helper to build TRS matrix from node
+static Mat4 get_transform_matrix(const SceneNode* node) {
+    Mat4 translation = Mat4::translate(
+        node->transform.position.x,
+        node->transform.position.y,
+        node->transform.position.z
+    );
+
+    const float deg_to_rad = 3.14195f / 180.0f;
+    Mat4 rotation = Mat4::rotate_euler(
+        node->transform.rotation.x * deg_to_rad,
+        node->transform.rotation.y * deg_to_rad,
+        node->transform.rotation.z * deg_to_rad
+    );
+
+    Mat4 scale = Mat4::scale(
+        node->transform.scale.x,
+        node->transform.scale.y,
+        node->transform.scale.z
+    );
+
+    return translation * rotation * scale;
+}
 
 // == create prims ==
 
@@ -90,6 +116,7 @@ RenderPrimitive RenderScene::create_sphere_primitive(const SceneNode* node, cons
     // apply transform
     prim.centre = node->transform.position;
     prim.radius = sphere->radius * node->transform.scale.x; //TEMP uniform on x
+    // no rotation yet..until spheroids
 
     prim.material = node->material;
 
@@ -101,10 +128,7 @@ RenderPrimitive RenderScene::create_quad_primitive(const SceneNode* node, const 
     RenderPrimitive prim;
     prim.type = RenderPrimitive::Type::Quad;
 
-    // transform quad to world space
-    Mat4 translate = Mat4::translate(node->transform.position.x, node->transform.position.y, node->transform.position.z);
-    Mat4 scale = Mat4::scale (node->transform.scale.x, node->transform.scale.y, node->transform.scale.z);
-    Mat4 model = translate * scale;
+    Mat4 model = get_transform_matrix(node);
 
     Vec3 local_corner = (quad->u + quad->v) * -1.0f;
     prim.quad_corner = model.transform_point(local_corner);
@@ -117,24 +141,73 @@ RenderPrimitive RenderScene::create_quad_primitive(const SceneNode* node, const 
     return prim;
 }
 
-RenderPrimitive RenderScene::create_cuboid_primitive(const SceneNode* node, const CuboidPrimitive* cuboid)
+void RenderScene::add_cuboid_as_triangles(const SceneNode* node, const CuboidPrimitive* cuboid, std::vector<RenderPrimitive>& prims)
 {
-    RenderPrimitive prim;
-    prim.type = RenderPrimitive::Type::Cuboid;
+    Mat4 model = get_transform_matrix(node);
 
-    // transform cuboid to world space AABB
-    Vec3 half_extents = Vec3(
-        cuboid->extents.x * node->transform.scale.x * 0.5f,
-        cuboid->extents.y * node->transform.scale.y * 0.5f,
-        cuboid->extents.z * node->transform.scale.z * 0.5f
-    );
+    Vec3 h = cuboid->extents / 2.0f;
 
-    prim.cuboid_min = node->transform.position - half_extents;
-    prim.cuboid_max = node->transform.position + half_extents;
+    //8 corners in local space
+    Vec3 corners[8] = {
+        Vec3(-h.x, -h.y, -h.z),
+        Vec3(h.x, -h.y, -h.z),
+        Vec3(h.x,  h.y, -h.z),
+        Vec3(-h.x,  h.y, -h.z),
+        Vec3(-h.x, -h.y,  h.z),
+        Vec3(h.x, -h.y,  h.z),
+        Vec3(h.x,  h.y,  h.z),
+        Vec3(-h.x,  h.y,  h.z)
+    };
 
-    prim.material = node->material;
+    // transform corners to world space
+    Vec3 world_corners[8];
+    for (int i = 0; i < 8; ++i) {
+        world_corners[i] = model.transform_point(corners[i]);
+    }
 
-    return prim;
+    //faces
+    struct Face {
+        int indices[4];
+        Vec3 normal;
+    };
+    Face faces[6] = {
+        {{3, 2, 1, 0}, Vec3(0, 0, -1)},  // back
+        {{6, 7, 4, 5}, Vec3(0, 0,  1)},  // front
+        {{7, 3, 0, 4}, Vec3(-1, 0, 0)},  // left
+        {{2, 6, 5, 1}, Vec3(1, 0,  0)},  // right
+        {{0, 1, 5, 4}, Vec3(0, -1, 0)},  // bottom
+        {{7, 6, 2, 3}, Vec3(0,  1, 0)}   // top
+    };
+
+    // create 2 tris per face
+    for (int f = 0; f < 6; ++f) {
+        // transform the normal
+        Vec3 world_normal = model.transform_direction(faces[f].normal).normalised();
+
+        // first tri (0, 1, 2)
+        RenderPrimitive tri1;
+        tri1.type = RenderPrimitive::Type::Triangle;
+        tri1.tri_v0 = world_corners[faces[f].indices[0]];
+        tri1.tri_v1 = world_corners[faces[f].indices[1]];
+        tri1.tri_v2 = world_corners[faces[f].indices[2]];
+        tri1.tri_n0 = world_normal;
+        tri1.tri_n1 = world_normal;
+        tri1.tri_n2 = world_normal;
+        tri1.material = node->material;
+        prims.push_back(tri1);
+
+        // second (0, 2, 3)
+        RenderPrimitive tri2;
+        tri2.type = RenderPrimitive::Type::Triangle;
+        tri2.tri_v0 = world_corners[faces[f].indices[0]];
+        tri2.tri_v1 = world_corners[faces[f].indices[2]];
+        tri2.tri_v2 = world_corners[faces[f].indices[3]];
+        tri2.tri_n0 = world_normal;
+        tri2.tri_n1 = world_normal;
+        tri2.tri_n2 = world_normal;
+        tri2.material = node->material;
+        prims.push_back(tri2);
+    }
 }
 
 // == create mesh ==

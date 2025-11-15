@@ -63,7 +63,6 @@ private:
     bool intersect(const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_sphere(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_quad(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
-    bool intersect_cuboid(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
     bool intersect_triangle(const RenderPrimitive& prim, const Ray& ray, float t_min, float t_max, Intersection& rec) const;
 
     Colour ray_colour(const Ray& ray, int depth, uint64_t& rng) const;
