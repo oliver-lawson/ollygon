@@ -88,11 +88,10 @@ static Mat4 get_transform_matrix(const SceneNode* node) {
         node->transform.position.z
     );
 
-    const float deg_to_rad = 3.14195f / 180.0f;
     Mat4 rotation = Mat4::rotate_euler(
-        node->transform.rotation.x * deg_to_rad,
-        node->transform.rotation.y * deg_to_rad,
-        node->transform.rotation.z * deg_to_rad
+        node->transform.rotation.x * DEG_TO_RAD,
+        node->transform.rotation.y * DEG_TO_RAD,
+        node->transform.rotation.z * DEG_TO_RAD
     );
 
     Mat4 scale = Mat4::scale(

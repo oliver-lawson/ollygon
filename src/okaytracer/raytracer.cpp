@@ -130,7 +130,7 @@ CameraBasis Raytracer::compute_camera_basis() const {
     Vec3 up = Vec3::cross(right, forward);
 
     float aspect = float(config.width) / float(config.height);
-    float fov_rad = 45.0f * 3.1459f / 180.0f;
+    float fov_rad = 45.0f * DEG_TO_RAD;
     float h = std::tan(fov_rad * 0.5f);
     float viewport_height = 2.0f * h;
     float viewport_width = viewport_height * aspect;
@@ -213,7 +213,7 @@ bool Raytracer::intersect_quad( const RenderPrimitive& prim, const Ray& ray, flo
 {
     float denom = Vec3::dot(prim.quad_normal, ray.direction);
 
-    if (std::abs(denom) < 1e-8f) return false;
+    if (std::abs(denom) < ALMOST_ZERO) return false;
 
     float t = Vec3::dot(prim.quad_corner - ray.origin, prim.quad_normal) / denom;
 
@@ -247,7 +247,7 @@ bool Raytracer::intersect_triangle( const RenderPrimitive& prim, const Ray& ray,
     Vec3 h = Vec3::cross(ray.direction, edge2);
     float a = Vec3::dot(edge1, h);
 
-    if (std::abs(a) < 1e-8f) {
+    if (std::abs(a) < ALMOST_ZERO) {
         return false;  // ray parallel to triangle
     }
 
@@ -359,9 +359,9 @@ bool Raytracer::scatter_lambertian(const Ray& ray_in, const Intersection& rec, C
     Vec3 scatter_dir = rec.normal + random_unit_vector(rng);
 
     // catch degenerate scatter direction
-    if (std::abs(scatter_dir.x) < 1e-8f &&
-        std::abs(scatter_dir.y) < 1e-8f &&
-        std::abs(scatter_dir.z) < 1e-8f) {
+    if (std::abs(scatter_dir.x) < ALMOST_ZERO &&
+        std::abs(scatter_dir.y) < ALMOST_ZERO &&
+        std::abs(scatter_dir.z) < ALMOST_ZERO) {
         scatter_dir = rec.normal;
     }
 

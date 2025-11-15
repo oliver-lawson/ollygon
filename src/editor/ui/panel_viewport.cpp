@@ -336,11 +336,10 @@ namespace ollygon {
                 );
 
                 // convert degrees to radians for rotation
-                const float deg_to_rad = 3.14195f / 180.0f;
                 Mat4 rotation = Mat4::rotate_euler(
-                    node->transform.rotation.x * deg_to_rad,
-                    node->transform.rotation.y * deg_to_rad,
-                    node->transform.rotation.z * deg_to_rad
+                    node->transform.rotation.x * DEG_TO_RAD,
+                    node->transform.rotation.y * DEG_TO_RAD,
+                    node->transform.rotation.z * DEG_TO_RAD
                 );
 
                 Mat4 scale = Mat4::scale(
@@ -407,7 +406,7 @@ namespace ollygon {
                 Vec3 up = Vec3::cross(right, forward);
 
                 float aspect = float(width()) / float(height());
-                float fov_rad = 45.0f * 3.14159f / 180.0f; //TEMP
+                float fov_rad = 45.0f * DEG_TO_RAD; //TEMP
                 float h = std::tan(fov_rad * 0.5f);
                 float w = h * aspect;
 

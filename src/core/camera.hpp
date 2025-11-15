@@ -33,7 +33,7 @@ public:
     }
 
     Mat4 get_projection_matrix() const {
-        return Mat4::perspective(fov_y * 3.14159f / 180.0f, aspect, near_plane, far_plane);
+        return Mat4::perspective(fov_y * DEG_TO_RAD, aspect, near_plane, far_plane);
     }
 
     void set_aspect(float new_aspect) { aspect = new_aspect; }

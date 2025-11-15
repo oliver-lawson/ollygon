@@ -2,6 +2,7 @@
 
 #include "vec3.hpp"
 #include <cmath>
+#include "constants.hpp"
 
 namespace ollygon {
 
@@ -109,9 +110,9 @@ struct Mat4 {
         float sz = std::sqrt(m[8] * m[8] + m[9] * m[9] + m[10] * m[10]);
 
         // check for zero scale (avoid division by zero)
-        if (sx < 1e-8f) sx = 1.0f;
-        if (sy < 1e-8f) sy = 1.0f;
-        if (sz < 1e-8f) sz = 1.0f;
+        if (sx < ALMOST_ZERO) sx = 1.0f;
+        if (sy < ALMOST_ZERO) sy = 1.0f;
+        if (sz < ALMOST_ZERO) sz = 1.0f;
 
         // inverse scale
         float inv_sx = 1.0f / sx;

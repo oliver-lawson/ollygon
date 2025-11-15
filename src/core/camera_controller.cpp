@@ -1,6 +1,7 @@
 #include "camera_controller.hpp"
 #include <cmath>
 #include <algorithm>
+#include "constants.hpp"
 
 namespace ollygon {
 
@@ -69,8 +70,8 @@ Vec3 CameraController::get_position() const {
 
 void CameraController::update_position_from_angles() {
     // convert spherical coords to cartesian
-    float yaw_rad = yaw * 3.14159f / 180.0f;
-    float pitch_rad = pitch * 3.14159f / 180.0f;
+    float yaw_rad = yaw * DEG_TO_RAD;
+    float pitch_rad = pitch * DEG_TO_RAD;
     
     float x = distance * std::cos(pitch_rad) * std::sin(yaw_rad);
     float y = distance * std::sin(pitch_rad);

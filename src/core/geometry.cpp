@@ -2,6 +2,7 @@
 #include <cmath>
 #include <limits>
 #include <algorithm>
+#include "constants.hpp"
 
 namespace ollygon{
 
@@ -50,7 +51,7 @@ bool Geo::intersect_tri(const Vec3& ray_origin, const Vec3& ray_dir, uint32_t tr
     Vec3 h = Vec3::cross(ray_dir, edge2);
     float a = Vec3::dot(edge1, h);
 
-    if (std::abs(a) < 1e-8f) {
+    if (std::abs(a) < ALMOST_ZERO) {
         return false;  // ray parallel to triangle
     }
 
@@ -119,9 +120,9 @@ void SpherePrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsig
 
     // generate verts
     for (int ring = 0; ring <= rings; ++ring) {
-        float phi = 3.14159f * float(ring) / float(rings);
+        float phi = PI * float(ring) / float(rings);
         for (int seg = segments; seg >= 0; --seg) {
-            float theta = 2.0f * 3.14159f * float(seg) / float(segments);
+            float theta = 2.0f * PI * float(seg) / float(segments);
 
             float x = std::sin(phi) * std::cos(theta);
             float y = std::cos(phi);
