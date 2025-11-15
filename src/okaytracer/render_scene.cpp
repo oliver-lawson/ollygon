@@ -71,8 +71,6 @@ void RenderScene::add_node_recursive(const SceneNode* node, std::vector<RenderPr
             break;
         default: break;
         }
-
-        render_prims.push_back(render_prim);
     }
 
     // recurse children
