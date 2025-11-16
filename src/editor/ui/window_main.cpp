@@ -46,11 +46,12 @@ void MainWindow::setup_ui() {
 }
 
 void MainWindow::setup_scene_cornell_box() {
-    // cornell box dimensions from Shirley, flipped 180deg and recentred on a different ocrner
+    // cornell box dimensions from Shirley, flipped 180deg and recentred on a different corner
+    // scaled down x100, presuming his are cm units
     Colour red(0.65f, 0.05f, 0.05f);
     Colour white(0.73f, 0.73f, 0.73f);
     Colour green(0.12f, 0.45f, 0.15f);
-    Colour light_emission(15.0f, 15.0f, 15.0f);
+    Colour light_emission(25.0f, 20.0f, 15.0f);
     Colour orange(1.0f, 0.6f, 0.2f);
     Colour yellow(1.0f, 0.9f, 0.3f);
 
@@ -64,7 +65,7 @@ void MainWindow::setup_scene_cornell_box() {
         Vec3(0, half_room, 0)
     );
     left_wall->transform.position = Vec3(0, half_room, -half_room);
-    left_wall->material = Material::lambertian(green);
+    left_wall->material = Material::lambertian(red);
     left_wall->albedo = green;
     scene.get_root()->add_child(std::move(left_wall));
 
@@ -75,7 +76,7 @@ void MainWindow::setup_scene_cornell_box() {
         Vec3(0, 0, -half_room)
     );
     right_wall->transform.position = Vec3(room_size, half_room, -half_room);
-    right_wall->material = Material::lambertian(red);
+    right_wall->material = Material::lambertian(green);
     right_wall->albedo = red;
     scene.get_root()->add_child(std::move(right_wall));
 
@@ -131,20 +132,20 @@ void MainWindow::setup_scene_cornell_box() {
 
     auto tall_box = std::make_unique<SceneNode>("Tall Box");
     tall_box->node_type = NodeType::Primitive;
-    tall_box->primitive = std::make_unique<CuboidPrimitive>(
-        Vec3(1.65f, 3.3f, 1.65f)
-    );
-    tall_box->transform.position = Vec3(2.075f, 1.65f, -3.775f);
+    tall_box->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.65f, 3.3f, 1.65f));
+    //tall_box->transform.position = Vec3(2.075f, 1.65f, -3.775f);
+    tall_box->transform.position = Vec3(1.850f, 1.65f, -3.59f);
+    tall_box->transform.rotation.y = 15.0f;
     tall_box->material = Material::lambertian(orange);
     tall_box->albedo = orange;
     scene.get_root()->add_child(std::move(tall_box));
 
     auto short_box = std::make_unique<SceneNode>("Short Box");
     short_box->node_type = NodeType::Primitive;
-    short_box->primitive = std::make_unique<CuboidPrimitive>(
-        Vec3(1.65f, 1.65f, 1.65f)
-    );
-    short_box->transform.position = Vec3(3.425f, 0.825f, -1.475f);
+    short_box->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.65f, 1.65f, 1.65f));
+    //short_box->transform.position = Vec3(3.425f, 0.825f, -1.475f);
+    short_box->transform.position = Vec3(3.7f, 0.825f, -1.8f);
+    short_box->transform.rotation.y = -18.0f;
     short_box->material = Material::chequerboard(yellow, red, 4.0f);
     short_box->albedo = yellow;
     scene.get_root()->add_child(std::move(short_box));

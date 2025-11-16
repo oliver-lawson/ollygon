@@ -332,7 +332,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
     Colour white(1.0f, 1.0f, 1.0f);
     Colour blue(0.5f, 0.7f, 1.0f);
 
-    return (white * (1.0f - t) + blue * t) * 0.05f;
+    return (white * (1.0f - t) + blue * t) * 0.005f;
 }
 
 bool Raytracer::scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const
