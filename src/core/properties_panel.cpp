@@ -330,7 +330,7 @@ void PropertiesPanel::create_camera_controls(QVBoxLayout* layout)
     CameraController* controller = camera->get_controller();
     int row = 0;
 
-    // position TEMP make editable
+    // position TEMP make all this editable when not in orbit mode
     Vec3 cam_pos = camera->get_pos();
     QLabel* pos_label = new QLabel("Position");
     pos_label->setMinimumWidth(60);
@@ -482,9 +482,9 @@ void PropertiesPanel::create_camera_controls(QVBoxLayout* layout)
     DragSpinBox* fov_spin = new DragSpinBox();
     fov_spin->set_range(1.0f, 179.0f);
     fov_spin->set_speed(0.5f);
-    fov_spin->set_value(camera->get_fov());
+    fov_spin->set_value(camera->get_fov_degs());
     camera_connections.push_back(connect(fov_spin, &DragSpinBox::value_changed, [this](float value) {
-        camera->set_fov(value);
+        camera->set_fov_degs(value);
         if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
             if (auto* viewport = main_win->centralWidget()) {
                 viewport->update();

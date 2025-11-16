@@ -405,12 +405,13 @@ namespace ollygon {
                 Vec3 right = Vec3::cross(forward, camera.get_up()).normalised();
                 Vec3 up = Vec3::cross(right, forward);
 
-                float aspect = float(width()) / float(height());
-                float fov_rad = camera.get_fov() * DEG_TO_RAD;
-                float h = std::tan(fov_rad * 0.5f);
-                float w = h * aspect;
+                float aspect_ratio = float(width()) / float(height());
+                float fov_rad = camera.get_fov_degs() * DEG_TO_RAD;
+                float viewport_half_height = std::tan(fov_rad * 0.5f);
+                float viewport_half_width = viewport_half_height * aspect_ratio;
 
-                Vec3 ray_dir = forward + right * (x_ndc * w) + up * (y_ndc * h);
+                Vec3 ray_dir = forward + right * (x_ndc * viewport_half_width)
+                                       + up * (y_ndc * viewport_half_height);
                 ray_dir = ray_dir.normalised();
 
                 selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);

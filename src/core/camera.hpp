@@ -37,9 +37,8 @@ public:
 
     void set_aspect(float new_aspect) { aspect = new_aspect; }
 
-    //fov getter/setter - in degrees
-    float get_fov() const { return fov_y; }
-    void set_fov(float new_fov) { fov_y = new_fov; }
+    float get_fov_degs() const { return fov_y; }
+    void set_fov_degs(float new_fov) { fov_y = new_fov; }
 
     CameraController* get_controller() { return &controller; }
     const CameraController* get_controller() const { return &controller; }
