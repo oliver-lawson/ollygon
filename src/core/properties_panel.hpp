@@ -7,9 +7,12 @@
 #include <QLabel>
 #include <QEvent>
 #include <QPainter>
+#include <QGroupBox>
+#include <vector>
 #include "scene.hpp"
 #include "selection_handler.hpp"
 #include "drag_spin_box.hpp"
+#include "camera.hpp"
 
 namespace ollygon {
 
@@ -75,21 +78,25 @@ class PropertiesPanel : public QDockWidget {
 
 public:
     explicit PropertiesPanel(SelectionHandler* selection, QWidget* parent = nullptr);
+    void set_camera(Camera* cam) { camera = cam; }
 
 public slots:
     void refresh_from_node();
+    void refresh_camera_properties();
 
 private slots:
     void on_selection_changed(SceneNode* node);
 
 signals:
     void properties_changed(); // visible/locked changed
+    void camera_properties_changed();
 
 private:
     void rebuild_ui(SceneNode* node);
     void create_transform_controls(SceneNode* node, QVBoxLayout* layout);
     void create_material_controls(SceneNode* node, QVBoxLayout* layout);
     void create_light_controls(SceneNode* node, QVBoxLayout* layout);
+    void create_camera_controls(QVBoxLayout* layout);
 
     void add_vec3_row(const QString& label, Vec3& vec, float min_val, float max_val, float speed, QGridLayout* grid, int row);
 
@@ -98,9 +105,13 @@ private:
     void add_float_row(const QString& label, float& value, float min_val, float max_val, float speed, QGridLayout* grid, int row);
 
     SelectionHandler* selection_handler;
+    Camera* camera;
     QWidget* content_widget;
     QVBoxLayout* main_layout;
     SceneNode* current_node;
+
+    QGroupBox* camera_group;
+    std::vector<QMetaObject::Connection> camera_connections;
 };
 
 } // namespace ollygon

@@ -435,6 +435,7 @@ namespace ollygon {
         if (event->buttons() & Qt::RightButton) {
             float sensitivity = 0.3f;
             controller->orbit(-delta.x() * sensitivity, delta.y() * sensitivity);
+            emit camera_moved();
             update();
         }
         else if (event->buttons() & Qt::MiddleButton) {
@@ -444,6 +445,7 @@ namespace ollygon {
             else {
                 controller->pan(-delta.x(), delta.y());
             }
+            emit camera_moved();
             update();
         }
     }
@@ -459,6 +461,7 @@ namespace ollygon {
         CameraController* controller = camera.get_controller();
         float delta = event->angleDelta().y() > 0 ? 0.5f : -0.5f;
         controller->zoom(delta);
+        emit camera_moved();
         update();
         event->accept();
     }

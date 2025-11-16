@@ -11,6 +11,8 @@ PropertiesPanel::PropertiesPanel(SelectionHandler* selection, QWidget* parent)
     : QDockWidget("Properties", parent)
     , selection_handler(selection)
     , current_node(nullptr)
+    , camera(nullptr)
+    , camera_group(nullptr)
 {
     setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
@@ -28,13 +30,30 @@ PropertiesPanel::PropertiesPanel(SelectionHandler* selection, QWidget* parent)
             this, &PropertiesPanel::on_selection_changed);
     }
 
-    main_layout->addWidget(new QLabel("No selection"));
-    main_layout->addStretch();
+    rebuild_ui(nullptr); //first draw of properties, even with no selection
+    return;
 }
 
 void PropertiesPanel::refresh_from_node() {
     if (!current_node) return;
     rebuild_ui(current_node); // could be more granular later, but our ui is very simple for now
+}
+
+void PropertiesPanel::refresh_camera_properties()
+{
+    if (!camera) return;
+    
+    // if camera group doesn't exist yet, do a full rebuild
+    if (!camera_group) {
+        rebuild_ui(current_node);
+        return;
+    }
+
+    //update position,target, fov values
+    // TEMP
+    // this is a bit rough, we're rebuilding the whole cam section and
+    // could be optimised to only update spinbox values later
+    create_camera_controls(main_layout);
 }
 
 void PropertiesPanel::on_selection_changed(SceneNode* node) {
@@ -43,6 +62,12 @@ void PropertiesPanel::on_selection_changed(SceneNode* node) {
 }
 
 void PropertiesPanel::rebuild_ui(SceneNode* node) {
+    // disconnect all camera connections before clearing
+    for (auto& conn : camera_connections) {
+        disconnect(conn);
+    }
+    camera_connections.clear();
+
     // clear existing widgets
     QLayoutItem* item;
     while ((item = main_layout->takeAt(0)) != nullptr) {
@@ -50,9 +75,15 @@ void PropertiesPanel::rebuild_ui(SceneNode* node) {
         delete item;
     }
 
+    // important: camera_group was just deleted above, so null it out
+    camera_group = nullptr;
+
     if (!node) {
         main_layout->addWidget(new QLabel("No selection"));
         main_layout->addStretch();
+
+        //cam controls always at bottom for now
+        if (camera) { create_camera_controls(main_layout); }
         return;
     }
 
@@ -106,6 +137,9 @@ void PropertiesPanel::rebuild_ui(SceneNode* node) {
     }
 
     main_layout->addStretch();
+
+    //cam controls always at bottom for now
+    if (camera) { create_camera_controls(main_layout); }
 }
 
 void PropertiesPanel::create_transform_controls(SceneNode* node, QVBoxLayout* layout) {
@@ -261,6 +295,186 @@ void PropertiesPanel::create_light_controls(SceneNode* node, QVBoxLayout* layout
     add_float_row("Intensity", node->light->intensity, 0.0f, 100.0f, 0.1f, grid, 2);
 
     layout->addWidget(light_group);
+}
+
+void PropertiesPanel::create_camera_controls(QVBoxLayout* layout)
+{
+    if (!camera) return;
+
+    // remove old camera group if it exists
+    if (camera_group) {
+        layout->removeWidget(camera_group);
+        delete camera_group;
+        camera_group = nullptr;
+    }
+
+    camera_group = new QGroupBox("Camera");
+    camera_group->setStyleSheet(
+        "QGroupBox {"
+        "    background-color: #191919;"
+        "    border: 1px solid #2f2f2f;"
+        "    border-radius: 5px;"
+        "    margin-top: 1ex;"
+        "}"
+        "QGroupBox::title {"
+        "    subcontrol-origin: margin;"
+        "    left: 10px;"
+        "    padding: 0 5px 0 5px;"
+        "    color: #777;"
+        "}"
+    );
+    QGridLayout* grid = new QGridLayout(camera_group);
+    grid->setSpacing(4);
+    grid->setContentsMargins(7, 10, 7, 7);
+
+    CameraController* controller = camera->get_controller();
+    int row = 0;
+
+    // position TEMP make editable
+    Vec3 cam_pos = camera->get_pos();
+    QLabel* pos_label = new QLabel("Position");
+    pos_label->setMinimumWidth(60);
+    grid->addWidget(pos_label, row, 0);
+
+    QLabel* pos_value = new QLabel(QString("X: %1  Y: %2  Z: %3")
+        .arg(cam_pos.x, 0, 'f', 2)
+        .arg(cam_pos.y, 0, 'f', 2)
+        .arg(cam_pos.z, 0, 'f', 2));
+    pos_value->setStyleSheet("color: #999; font-size: 9pt;");
+    grid->addWidget(pos_value, row++, 1, 1, 3);
+
+    // target
+    Vec3 target = controller->get_target();
+    QLabel* target_label = new QLabel("Target");
+    target_label->setMinimumWidth(60);
+    grid->addWidget(target_label, row, 0);
+
+    QWidget* target_wrapper = new QWidget();
+    target_wrapper->setMinimumHeight(24);
+    target_wrapper->setMaximumHeight(24);
+
+    DragSpinBox* target_x = new DragSpinBox(target_wrapper);
+    target_x->set_range(-100.0f, 100.0f);
+    target_x->set_speed(0.01f);
+    target_x->set_value(target.x);
+    target_x->set_letter(SpinBoxLetter::X);
+    camera_connections.push_back(connect(target_x, &DragSpinBox::value_changed, [controller, this](float value) {
+        Vec3 new_target = controller->get_target();
+        new_target.x = value;
+        controller->set_target(new_target);
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+
+    DragSpinBox* target_y = new DragSpinBox(target_wrapper);
+    target_y->set_range(-100.0f, 100.0f);
+    target_y->set_speed(0.01f);
+    target_y->set_value(target.y);
+    target_y->set_letter(SpinBoxLetter::Y);
+    camera_connections.push_back(connect(target_y, &DragSpinBox::value_changed, [controller, this](float value) {
+        Vec3 new_target = controller->get_target();
+        new_target.y = value;
+        controller->set_target(new_target);
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+
+    DragSpinBox* target_z = new DragSpinBox(target_wrapper);
+    target_z->set_range(-100.0f, 100.0f);
+    target_z->set_speed(0.01f);
+    target_z->set_value(target.z);
+    target_z->set_letter(SpinBoxLetter::Z);
+    camera_connections.push_back(connect(target_z, &DragSpinBox::value_changed, [controller, this](float value) {
+        Vec3 new_target = controller->get_target();
+        new_target.z = value;
+        controller->set_target(new_target);
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+
+    BorderOverlay* target_overlay = new BorderOverlay(target_wrapper);
+    target_wrapper->installEventFilter(new ResizeFilter());
+    grid->addWidget(target_wrapper, row++, 1, 1, 3);
+
+    // orbit parameters (distance, yaw, pitch)
+    QLabel* dist_label = new QLabel("Distance");
+    dist_label->setMinimumWidth(60);
+    grid->addWidget(dist_label, row, 0);
+
+    DragSpinBox* dist_spin = new DragSpinBox();
+    dist_spin->set_range(0.5f, 50.0f);
+    dist_spin->set_speed(0.05f);
+    dist_spin->set_value(controller->get_distance());
+    camera_connections.push_back(connect(dist_spin, &DragSpinBox::value_changed, [controller, this](float value) {
+        controller->set_orbit_params(
+            controller->get_yaw(),
+            controller->get_pitch(),
+            value
+        );
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+    grid->addWidget(dist_spin, row++, 1, 1, 3);
+
+    // yaw
+    QLabel* yaw_label = new QLabel("Yaw");
+    yaw_label->setMinimumWidth(60);
+    grid->addWidget(yaw_label, row, 0);
+
+    DragSpinBox* yaw_spin = new DragSpinBox();
+    yaw_spin->set_range(-180.0f, 180.0f);
+    yaw_spin->set_speed(0.5f);
+    yaw_spin->set_value(controller->get_yaw());
+    camera_connections.push_back(connect(yaw_spin, &DragSpinBox::value_changed, [controller, this](float value) {
+        controller->set_orbit_params(
+            value,
+            controller->get_pitch(),
+            controller->get_distance()
+        );
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+    grid->addWidget(yaw_spin, row++, 1, 1, 3);
+
+    // pitch
+    QLabel* pitch_label = new QLabel("Pitch");
+    pitch_label->setMinimumWidth(60);
+    grid->addWidget(pitch_label, row, 0);
+
+    DragSpinBox* pitch_spin = new DragSpinBox();
+    pitch_spin->set_range(-89.0f, 89.0f);
+    pitch_spin->set_speed(0.5f);
+    pitch_spin->set_value(controller->get_pitch());
+    camera_connections.push_back(connect(pitch_spin, &DragSpinBox::value_changed, [controller, this](float value) {
+        controller->set_orbit_params(
+            controller->get_yaw(),
+            value,
+            controller->get_distance()
+        );
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+    }));
+    grid->addWidget(pitch_spin, row++, 1, 1, 3);
+
+    layout->addWidget(camera_group);
 }
 
 void PropertiesPanel::add_vec3_row(const QString& label, Vec3& vec, float min_val, float max_val, float speed, QGridLayout* grid, int row) {

@@ -63,6 +63,10 @@ private:
     // camera controlling
     bool is_camera_dragging;
     QPoint last_mouse_pos;
+
+signals:
+    void camera_moved();
 };
+
 
 } // namespace ollygon

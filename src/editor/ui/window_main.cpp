@@ -329,6 +329,8 @@ void MainWindow::setup_scene_stress_test() {
 void MainWindow::create_dock_widgets() {
     // properties panel
     properties_panel = new PropertiesPanel(&selection_handler, this);
+    properties_panel->set_camera(viewport->get_camera());
+    properties_panel->refresh_camera_properties();
     addDockWidget(Qt::RightDockWidgetArea, properties_panel);
 
     // scene hierarchy panel
@@ -357,6 +359,9 @@ void MainWindow::create_dock_widgets() {
     connect(scene_hierarchy, &PanelSceneHierarchy::node_deleted, this, [this]() {
         selection_handler.clear_selection();
         });
+
+    // connect viewport updates to refresh camera properties
+    connect(viewport, &PanelViewport::camera_moved, properties_panel, &PropertiesPanel::refresh_camera_properties);
 
     scene_dock->setWidget(scene_hierarchy);
     addDockWidget(Qt::LeftDockWidgetArea, scene_dock);
