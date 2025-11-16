@@ -299,7 +299,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
         }
 
         // russian roulette termination of rays.  on cornell box, about +11% perf
-        if (depth < config.max_bounces - 2) {  // after a few bounces
+        if (depth < 4) {  // after a few bounces
             float p = std::max(rec.material.albedo.r,
                 std::max(rec.material.albedo.g, rec.material.albedo.b));
             if (random_float(rng) > p) {
@@ -327,7 +327,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
 
     // bg/TEMP sky gradient, dark for cool renders
     //TODO: unified world bg settings
-    Vec3 unit_dir = ray.direction.normalised();
+    Vec3 unit_dir = ray.direction;
     float t = 0.5f * (unit_dir.y + 1.0f);
     Colour white(1.0f, 1.0f, 1.0f);
     Colour blue(0.5f, 0.7f, 1.0f);
