@@ -7,7 +7,7 @@ namespace ollygon {
 
 CameraController::CameraController()
     : current_mode(CameraMode::Orbit)
-    , target(2.775f, 2.775f, -2.775f)  // centre of cornell box default
+    , target(2.77f, 2.78f, -2.775f)  // centre of cornell box default
     , distance(8.0f)
     , yaw(0.0f)
     , pitch(0.0f)
@@ -30,7 +30,7 @@ void CameraController::orbit(float delta_yaw, float delta_pitch) {
 
 void CameraController::zoom(float delta) {
     distance -= delta;
-    distance = std::clamp(distance, 0.5f, 50.0f);
+    //distance = std::clamp(distance, 0.1f, 1000.0f);
     
     update_position_from_angles();
 }

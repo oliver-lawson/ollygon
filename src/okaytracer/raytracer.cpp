@@ -130,7 +130,7 @@ CameraBasis Raytracer::compute_camera_basis() const {
     Vec3 up = Vec3::cross(right, forward);
 
     float aspect = float(config.width) / float(config.height);
-    float fov_rad = 45.0f * DEG_TO_RAD;
+    float fov_rad = camera.get_fov() * DEG_TO_RAD;
     float h = std::tan(fov_rad * 0.5f);
     float viewport_height = 2.0f * h;
     float viewport_width = viewport_height * aspect;

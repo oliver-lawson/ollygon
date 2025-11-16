@@ -406,7 +406,7 @@ namespace ollygon {
                 Vec3 up = Vec3::cross(right, forward);
 
                 float aspect = float(width()) / float(height());
-                float fov_rad = 45.0f * DEG_TO_RAD; //TEMP
+                float fov_rad = camera.get_fov() * DEG_TO_RAD;
                 float h = std::tan(fov_rad * 0.5f);
                 float w = h * aspect;
 

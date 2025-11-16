@@ -411,7 +411,7 @@ void PropertiesPanel::create_camera_controls(QVBoxLayout* layout)
     grid->addWidget(dist_label, row, 0);
 
     DragSpinBox* dist_spin = new DragSpinBox();
-    dist_spin->set_range(0.5f, 50.0f);
+    dist_spin->set_range(0.01f, 1000.0f);
     dist_spin->set_speed(0.05f);
     dist_spin->set_value(controller->get_distance());
     camera_connections.push_back(connect(dist_spin, &DragSpinBox::value_changed, [controller, this](float value) {
@@ -471,8 +471,27 @@ void PropertiesPanel::create_camera_controls(QVBoxLayout* layout)
                 viewport->update();
             }
         }
-    }));
+        }));
     grid->addWidget(pitch_spin, row++, 1, 1, 3);
+
+    // FOV
+    QLabel* fov_label = new QLabel("FOV");
+    fov_label->setMinimumWidth(60);
+    grid->addWidget(fov_label, row, 0);
+
+    DragSpinBox* fov_spin = new DragSpinBox();
+    fov_spin->set_range(1.0f, 179.0f);
+    fov_spin->set_speed(0.5f);
+    fov_spin->set_value(camera->get_fov());
+    camera_connections.push_back(connect(fov_spin, &DragSpinBox::value_changed, [this](float value) {
+        camera->set_fov(value);
+        if (auto* main_win = qobject_cast<QMainWindow*>(window())) {
+            if (auto* viewport = main_win->centralWidget()) {
+                viewport->update();
+            }
+        }
+        }));
+    grid->addWidget(fov_spin, row++, 1, 1, 3);
 
     layout->addWidget(camera_group);
 }
