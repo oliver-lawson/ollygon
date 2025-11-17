@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/vec3.hpp"
+#include "core/mat4.hpp"
 #include "core/colour.hpp"
 #include "core/geometry.hpp"
 #include "core/material.hpp"
@@ -16,6 +17,18 @@ struct Transform {
     Vec3 scale;
 
     Transform() : position(0,0,0), rotation(0,0,0), scale(1,1,1) {}
+
+    // conversion
+    Mat4 to_matrix() const {
+        Mat4 translation = Mat4::translate(position.x, position.y, position.z);
+        Mat4 rotation_mat = Mat4::rotate_euler(
+            rotation.x * DEG_TO_RAD,
+            rotation.y * DEG_TO_RAD,
+            rotation.z * DEG_TO_RAD
+        );
+        Mat4 scale_mat = Mat4::scale(scale.x, scale.y, scale.z);
+        return translation * rotation_mat * scale_mat;
+    }
 };
 
 enum class NodeType {

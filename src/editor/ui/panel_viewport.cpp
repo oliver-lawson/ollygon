@@ -329,26 +329,7 @@ namespace ollygon {
             if (it != geometry_ranges.end()) {
                 const GeometryRange& range = it->second;
 
-                Mat4 translation = Mat4::translate(
-                    node->transform.position.x,
-                    node->transform.position.y,
-                    node->transform.position.z
-                );
-
-                // convert degrees to radians for rotation
-                Mat4 rotation = Mat4::rotate_euler(
-                    node->transform.rotation.x * DEG_TO_RAD,
-                    node->transform.rotation.y * DEG_TO_RAD,
-                    node->transform.rotation.z * DEG_TO_RAD
-                );
-
-                Mat4 scale = Mat4::scale(
-                    node->transform.scale.x,
-                    node->transform.scale.y,
-                    node->transform.scale.z
-                );
-
-                Mat4 model = translation * rotation * scale;
+                Mat4 model = node->transform.to_matrix();
                 Mat4 model_y_up = Mat4::swizzle_z_up_and_y_up() * model; //convert to openGL
 
                 shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());

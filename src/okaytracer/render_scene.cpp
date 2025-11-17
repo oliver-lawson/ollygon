@@ -79,30 +79,6 @@ void RenderScene::add_node_recursive(const SceneNode* node, std::vector<RenderPr
     }
 }
 
-// == utils ==
-// helper to build TRS matrix from node
-static Mat4 get_transform_matrix(const SceneNode* node) {
-    Mat4 translation = Mat4::translate(
-        node->transform.position.x,
-        node->transform.position.y,
-        node->transform.position.z
-    );
-
-    Mat4 rotation = Mat4::rotate_euler(
-        node->transform.rotation.x * DEG_TO_RAD,
-        node->transform.rotation.y * DEG_TO_RAD,
-        node->transform.rotation.z * DEG_TO_RAD
-    );
-
-    Mat4 scale = Mat4::scale(
-        node->transform.scale.x,
-        node->transform.scale.y,
-        node->transform.scale.z
-    );
-
-    return translation * rotation * scale;
-}
-
 // == create prims ==
 
 RenderPrimitive RenderScene::create_sphere_primitive(const SceneNode* node, const SpherePrimitive* sphere)
@@ -125,7 +101,7 @@ RenderPrimitive RenderScene::create_quad_primitive(const SceneNode* node, const 
     RenderPrimitive prim;
     prim.type = RenderPrimitive::Type::Quad;
 
-    Mat4 model = get_transform_matrix(node);
+    Mat4 model = node->transform.to_matrix();
 
     Vec3 local_corner = (quad->u + quad->v) * -1.0f;
     prim.quad_corner = model.transform_point(local_corner);
@@ -140,7 +116,7 @@ RenderPrimitive RenderScene::create_quad_primitive(const SceneNode* node, const 
 
 void RenderScene::add_cuboid_as_triangles(const SceneNode* node, const CuboidPrimitive* cuboid, std::vector<RenderPrimitive>& prims)
 {
-    Mat4 model = get_transform_matrix(node);
+    Mat4 model = node->transform.to_matrix();
 
     Vec3 h = cuboid->extents / 2.0f;
 

@@ -6,6 +6,15 @@
 #include <string>
 #include <memory>
 
+//////////////////////////////////////////////////////////
+// Geometry system:
+// - Geo: triangle mesh data (vertices, indices etc)
+// - Primitive: analytic shapes (cuboid, sphere, quads etc)
+//
+// both live in local space, transformed by SceneNode
+//
+//////////////////////////////////////////////////////////
+
 namespace ollygon {
 
 // == geo ==
