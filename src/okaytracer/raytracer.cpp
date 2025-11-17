@@ -328,7 +328,7 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
     // bg/TEMP sky gradient, dark for cool renders
     //TODO: unified world bg settings
     Vec3 unit_dir = ray.direction;
-    float t = 0.5f * (unit_dir.y + 1.0f);
+    float t = 0.5f * (unit_dir.z + 1.0f);
     Colour white(1.0f, 1.0f, 1.0f);
     Colour blue(0.5f, 0.7f, 1.0f);
 

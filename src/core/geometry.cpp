@@ -182,10 +182,8 @@ bool SpherePrimitive::intersect_ray(const Vec3& ray_origin, const Vec3& ray_dir,
 }
 
 // == Quad ==
-void QuadPrimitive::generate_mesh(
-    std::vector<float>& verts,
-    std::vector<unsigned int>& indices
-) const {
+void QuadPrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const 
+{
     Vec3 normal = Vec3::cross(u, v).normalised();
 
     size_t vertex_start = verts.size() / 6;
@@ -207,7 +205,7 @@ void QuadPrimitive::generate_mesh(
         verts.push_back(normal.z);
     }
 
-    // two tris
+    // two tris, anticlockwise winding when viewed from normal direction
     indices.push_back(vertex_start + 0);
     indices.push_back(vertex_start + 1);
     indices.push_back(vertex_start + 2);
@@ -252,10 +250,8 @@ bool QuadPrimitive::intersect_ray(
 }
 
 // == Cuboid ==
-void CuboidPrimitive::generate_mesh(
-    std::vector<float>& verts,
-    std::vector<unsigned int>& indices
-) const {
+void CuboidPrimitive::generate_mesh(std::vector<float>& verts, std::vector<unsigned int>& indices) const
+{
     size_t vertex_start = verts.size() / 6;
 
     Vec3 h = extents / 2; // half the extents to draw these offsets around 0

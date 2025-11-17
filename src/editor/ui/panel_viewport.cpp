@@ -287,7 +287,7 @@ namespace ollygon {
         shader_program->setUniformValue("projection", QMatrix4x4(projection.floats()).transposed());
         // TEMP
         // light pos is baked to cornell area light pos for now
-        shader_program->setUniformValue("light_pos", QVector3D(2.775f, 5.54f, -2.775f));
+        shader_program->setUniformValue("light_pos", QVector3D(2.775f, 2.775f, 5.54f));
         shader_program->setUniformValue("view_pos", QVector3D(cam_pos.x, cam_pos.y, cam_pos.z));
 
         vao.bind();
@@ -349,6 +349,7 @@ namespace ollygon {
                 );
 
                 Mat4 model = translation * rotation * scale;
+                Mat4 model_y_up = Mat4::swizzle_z_up_and_y_up() * model; //convert to openGL
 
                 shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());
 

@@ -46,8 +46,11 @@ void MainWindow::setup_ui() {
 }
 
 void MainWindow::setup_scene_cornell_box() {
-    // cornell box dimensions from Shirley, flipped 180deg and recentred on a different corner
-    // scaled down x100, presuming his are cm units
+    // cornell box in Z-up coordinates
+    // dimensions from shirley, TODO check other sources
+    // floor at Z=0, ceiling at Z=5.55
+    // viewer looks from +Y towards -Y (into the box)
+    
     Colour red(0.65f, 0.05f, 0.05f);
     Colour white(0.73f, 0.73f, 0.73f);
     Colour green(0.12f, 0.45f, 0.15f);
@@ -61,50 +64,50 @@ void MainWindow::setup_scene_cornell_box() {
     auto left_wall = std::make_unique<SceneNode>("Left Wall");
     left_wall->node_type = NodeType::Primitive;
     left_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, 0, -half_room),
-        Vec3(0, half_room, 0)
+        Vec3(0, half_room, 0),
+        Vec3(0, 0, half_room)
     );
-    left_wall->transform.position = Vec3(0, half_room, -half_room);
+    left_wall->transform.position = Vec3(0, half_room, half_room);
     left_wall->material = Material::lambertian(red);
     scene.get_root()->add_child(std::move(left_wall));
 
     auto right_wall = std::make_unique<SceneNode>("Right Wall");
     right_wall->node_type = NodeType::Primitive;
     right_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, half_room, 0),
-        Vec3(0, 0, -half_room)
+        Vec3(0, 0, half_room),
+        Vec3(0, half_room, 0)
     );
-    right_wall->transform.position = Vec3(room_size, half_room, -half_room);
+    right_wall->transform.position = Vec3(room_size, half_room, half_room);
     right_wall->material = Material::lambertian(green);
     scene.get_root()->add_child(std::move(right_wall));
 
     auto floor = std::make_unique<SceneNode>("Floor");
     floor->node_type = NodeType::Primitive;
     floor->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(-half_room, 0, 0),
-        Vec3(0, 0, half_room)
+        Vec3(half_room, 0, 0),
+        Vec3(0, half_room, 0)
     );
-    floor->transform.position = Vec3(half_room, 0, -half_room);
+    floor->transform.position = Vec3(half_room, half_room, 0);
     floor->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(floor));
 
     auto ceiling = std::make_unique<SceneNode>("Ceiling");
     ceiling->node_type = NodeType::Primitive;
     ceiling->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(half_room, 0, 0),
-        Vec3(0, 0, half_room)
+        Vec3(0, half_room, 0),
+        Vec3(half_room, 0, 0)
     );
-    ceiling->transform.position = Vec3(half_room, room_size, -half_room);
+    ceiling->transform.position = Vec3(half_room, half_room, room_size);
     ceiling->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(ceiling));
 
     auto back_wall = std::make_unique<SceneNode>("Back Wall");
     back_wall->node_type = NodeType::Primitive;
     back_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, half_room, 0),
+        Vec3(0, 0, half_room),
         Vec3(-half_room, 0, 0)
     );
-    back_wall->transform.position = Vec3(half_room, half_room, -room_size);
+    back_wall->transform.position = Vec3(half_room, room_size, half_room);
     back_wall->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(back_wall));
 
@@ -117,42 +120,40 @@ void MainWindow::setup_scene_cornell_box() {
     light_node->light->is_area_light = true;
 
     light_node->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0.65f, 0, 0),
-        Vec3(0, 0, 0.525f)
+        Vec3(0, 0.525f, 0),
+        Vec3(0.65f, 0, 0)
     );
-    light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
+    light_node->transform.position = Vec3(2.775f, 2.775f, 5.54f);
     light_node->material = Material::emissive(light_emission);
     scene.get_root()->add_child(std::move(light_node));
 
     auto tall_box = std::make_unique<SceneNode>("Tall Box");
     tall_box->node_type = NodeType::Primitive;
-    tall_box->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.65f, 3.3f, 1.65f));
-    //tall_box->transform.position = Vec3(2.075f, 1.65f, -3.775f);
-    tall_box->transform.position = Vec3(1.850f, 1.65f, -3.59f);
-    tall_box->transform.rotation.y = 15.0f;
+    tall_box->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.65f, 1.65f, 3.3f));
+    tall_box->transform.position = Vec3(1.850f, 3.59f, 1.65f);
+    tall_box->transform.rotation.z = 15.0f;
     tall_box->material = Material::lambertian(orange);
     scene.get_root()->add_child(std::move(tall_box));
 
     auto short_box = std::make_unique<SceneNode>("Short Box");
     short_box->node_type = NodeType::Primitive;
     short_box->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.65f, 1.65f, 1.65f));
-    //short_box->transform.position = Vec3(3.425f, 0.825f, -1.475f);
-    short_box->transform.position = Vec3(3.7f, 0.825f, -1.8f);
-    short_box->transform.rotation.y = -18.0f;
+    short_box->transform.position = Vec3(3.7f, 1.8f, 0.825f);
+    short_box->transform.rotation.z = -18.0f;
     short_box->material = Material::chequerboard(yellow, red, 4.0f);
     scene.get_root()->add_child(std::move(short_box));
 
     auto sphere = std::make_unique<SceneNode>("Sphere");
     sphere->node_type = NodeType::Primitive;
     sphere->primitive = std::make_unique<SpherePrimitive>(0.50f);
-    sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
+    sphere->transform.position = Vec3(3.700f, 1.8f, 2.150f);
     sphere->material = Material::metal(Colour(0.19f, 0.18f, 0.9f));
     scene.get_root()->add_child(std::move(sphere));
 
     auto sphere2 = std::make_unique<SceneNode>("Sphere2");
     sphere2->node_type = NodeType::Primitive;
     sphere2->primitive = std::make_unique<SpherePrimitive>(0.50f);
-    sphere2->transform.position = Vec3(1.415f, 3.480f, -2.335f);
+    sphere2->transform.position = Vec3(1.415f, 2.335f, 3.480f);
     sphere2->transform.scale = 2.0f;
     sphere2->material = Material::dielectric(2.85f);
     scene.get_root()->add_child(std::move(sphere2));
@@ -162,12 +163,12 @@ void MainWindow::setup_scene_cornell_box() {
     test_quad->geo = std::make_unique<Geo>();
 
     Vec3 corners[4] = {
-        Vec3(1.4f,  0.0f,  0.4f),
-        Vec3(-0.1f, -0.1f,  0.1f),
-        Vec3(0.8f,  1.3f,  0.2f),
-        Vec3(0.1f,  1.1f,  0.1f)
+        Vec3(1.4f,  0.4f,  0.0f),
+        Vec3(-0.1f, 0.1f, -0.1f),
+        Vec3(0.8f,  0.2f,  1.3f),
+        Vec3(0.1f,  0.1f,  1.1f)
     };
-    Vec3 normal = Vec3(0, 1.0f, 0);
+    Vec3 normal = Vec3(0, 0, 1.0f);
 
     for (int i = 0; i < 4; i++) {
         test_quad->geo->add_vertex(corners[i], normal);
@@ -176,7 +177,7 @@ void MainWindow::setup_scene_cornell_box() {
     test_quad->geo->add_tri(2, 1, 0);
     test_quad->geo->add_tri(2, 3, 1);
     test_quad->material = Material::lambertian(Colour(0.07f, 0.01f, 0.95f));
-    test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
+    test_quad->transform.position = Vec3(1.5f, 3.5f, 3.5f);
 
     scene.get_root()->add_child(std::move(test_quad));
 }
@@ -194,50 +195,50 @@ void MainWindow::setup_scene_stress_test() {
     auto left_wall = std::make_unique<SceneNode>("Left Wall");
     left_wall->node_type = NodeType::Primitive;
     left_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, 0, -half_room),
-        Vec3(0, half_room, 0)
+        Vec3(0, half_room, 0),
+        Vec3(0, 0, half_room)
     );
-    left_wall->transform.position = Vec3(0, half_room, -half_room);
-    left_wall->material = Material::lambertian(green);
+    left_wall->transform.position = Vec3(0, half_room, half_room);
+    left_wall->material = Material::lambertian(red);
     scene.get_root()->add_child(std::move(left_wall));
 
     auto right_wall = std::make_unique<SceneNode>("Right Wall");
     right_wall->node_type = NodeType::Primitive;
     right_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, half_room, 0),
-        Vec3(0, 0, -half_room)
+        Vec3(0, 0, half_room),
+        Vec3(0, half_room, 0)
     );
-    right_wall->transform.position = Vec3(room_size, half_room, -half_room);
-    right_wall->material = Material::lambertian(red);
+    right_wall->transform.position = Vec3(room_size, half_room, half_room);
+    right_wall->material = Material::lambertian(green);
     scene.get_root()->add_child(std::move(right_wall));
 
     auto floor = std::make_unique<SceneNode>("Floor");
     floor->node_type = NodeType::Primitive;
     floor->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(-half_room, 0, 0),
-        Vec3(0, 0, half_room)
+        Vec3(half_room, 0, 0),
+        Vec3(0, half_room, 0)
     );
-    floor->transform.position = Vec3(half_room, 0, -half_room);
+    floor->transform.position = Vec3(half_room, half_room, 0);
     floor->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(floor));
 
     auto ceiling = std::make_unique<SceneNode>("Ceiling");
     ceiling->node_type = NodeType::Primitive;
     ceiling->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(half_room, 0, 0),
-        Vec3(0, 0, half_room)
+        Vec3(0, half_room, 0),
+        Vec3(half_room, 0, 0)
     );
-    ceiling->transform.position = Vec3(half_room, room_size, -half_room);
+    ceiling->transform.position = Vec3(half_room, half_room, room_size);
     ceiling->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(ceiling));
 
     auto back_wall = std::make_unique<SceneNode>("Back Wall");
     back_wall->node_type = NodeType::Primitive;
     back_wall->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0, half_room, 0),
+        Vec3(0, 0, half_room),
         Vec3(-half_room, 0, 0)
     );
-    back_wall->transform.position = Vec3(half_room, half_room, -room_size);
+    back_wall->transform.position = Vec3(half_room, room_size, half_room);
     back_wall->material = Material::lambertian(white);
     scene.get_root()->add_child(std::move(back_wall));
 
@@ -250,10 +251,10 @@ void MainWindow::setup_scene_stress_test() {
     light_node->light->is_area_light = true;
 
     light_node->primitive = std::make_unique<QuadPrimitive>(
-        Vec3(0.65f, 0, 0),
-        Vec3(0, 0, 0.525f)
+        Vec3(0, 0.525f, 0),
+        Vec3(0.65f, 0, 0)
     );
-    light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
+    light_node->transform.position = Vec3(2.775f, 2.775f, 5.54f);
     light_node->material = Material::emissive(light_emission);
     scene.get_root()->add_child(std::move(light_node));
 
@@ -262,7 +263,7 @@ void MainWindow::setup_scene_stress_test() {
     std::mt19937 seed(rd());
     std::uniform_real_distribution<float> pos_x(0.3f, room_size - 0.3f);
     std::uniform_real_distribution<float> pos_y(0.3f, room_size - 0.3f);
-    std::uniform_real_distribution<float> pos_z(-room_size + 0.3f, -0.3f);
+    std::uniform_real_distribution<float> pos_z(0.3f, room_size - 0.3f);
     std::uniform_real_distribution<float> size_dist(0.08f, 0.25f);
     std::uniform_real_distribution<float> colour_dist(0.1f, 0.95f);
     std::uniform_int_distribution<int> shape_dist(0, 1); // 0=sphere, 1=cube
@@ -272,7 +273,7 @@ void MainWindow::setup_scene_stress_test() {
         std::string name = "Stress_" + std::to_string(i);
         auto node = std::make_unique<SceneNode>(name);
         node->node_type = NodeType::Primitive;
-
+        
         // random shape
         bool is_sphere = (shape_dist(seed) == 0);
         float obj_size = size_dist(seed);

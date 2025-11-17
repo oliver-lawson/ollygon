@@ -30,7 +30,7 @@ public:
     // getters for camera
     Vec3 get_position() const;
     Vec3 get_target() const { return target; }
-    Vec3 get_up() const { return Vec3(0, 1, 0); }
+    Vec3 get_up() const { return Vec3(0, 0, 1); }
     
     void set_target(const Vec3& new_target) { target = new_target; }
 

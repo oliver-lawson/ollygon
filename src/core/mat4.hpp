@@ -194,6 +194,17 @@ struct Mat4 {
         return result;
     }
 
+    // == coord conversion helpers ==
+
+    // for eg ollygon z-up -> openGL y-up
+    static Mat4 swizzle_z_up_and_y_up() {
+        Mat4 mat;
+        // swap y and z
+        mat.m[5] = 0; mat.m[6] = 1;  //y row
+        mat.m[9] = 1; mat.m[10] = 0; //z row
+        return mat;
+    }
+
     const float* floats() const { return m; }
 };
 

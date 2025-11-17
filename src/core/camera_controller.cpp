@@ -7,14 +7,14 @@ namespace ollygon {
 
 CameraController::CameraController()
     : current_mode(CameraMode::Orbit)
-    , target(2.77f, 2.78f, -2.775f)  // centre of cornell box default
+    , target(2.775f, 2.775f, 2.775f)  // centre of Cornell box
     , distance(8.0f)
     , yaw(0.0f)
     , pitch(0.0f)
-    , position(0, 4, 5)
-    , forward(0, 0, -1)
+    , position(2.775f, -5.22f, 2.78f)
+    , forward(0, 1, 0)
     , right(1, 0, 0)
-    , up(0, 1, 0)
+    , up(0, 0, 1)
 {
     update_position_from_angles();
 }
@@ -37,7 +37,7 @@ void CameraController::zoom(float delta) {
 
 void CameraController::pan(float delta_x, float delta_y) {
     Vec3 to_camera = (position - target).normalised();
-    Vec3 right = Vec3::cross(Vec3(0, 1, 0), to_camera).normalised();
+    Vec3 right = Vec3::cross(Vec3(0, 0, 1), to_camera).normalised();
     Vec3 up = Vec3::cross(to_camera, right);
 
     float pan_speed = distance * 0.001f; // this feels about right
@@ -69,13 +69,15 @@ Vec3 CameraController::get_position() const {
 }
 
 void CameraController::update_position_from_angles() {
-    // convert spherical coords to cartesian
+    // spherical coords in Z-up, right-handed
+    // yaw=0 means camera at -Y looking toward +Y (into scene)
+    // yaw increases anticlockwise around Z (when viewed from above)
     float yaw_rad = yaw * DEG_TO_RAD;
     float pitch_rad = pitch * DEG_TO_RAD;
     
     float x = distance * std::cos(pitch_rad) * std::sin(yaw_rad);
-    float y = distance * std::sin(pitch_rad);
-    float z = distance * std::cos(pitch_rad) * std::cos(yaw_rad);
+    float y = -distance * std::cos(pitch_rad) * std::cos(yaw_rad);
+    float z = distance * std::sin(pitch_rad);
     
     position = target + Vec3(x, y, z);
 }
