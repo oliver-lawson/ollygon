@@ -20,8 +20,8 @@ RaytracerWindow::RaytracerWindow(QWidget* parent)
     //defaults
     render_config.width = 600;
     render_config.height = 600;
-    render_config.samples_per_pixel = 100;
-    render_config.max_bounces = 8;
+    render_config.samples_per_pixel = 1000;
+    render_config.max_bounces = 7;
 
     setup_ui();
 

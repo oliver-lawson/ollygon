@@ -23,8 +23,8 @@ struct RenderConfig {
     RenderConfig()
         : width(600)
         , height(600)
-        , samples_per_pixel(100)
-        , max_bounces(8)
+        , samples_per_pixel(1000)
+        , max_bounces(7)
         , seed(1)
     {}
 };

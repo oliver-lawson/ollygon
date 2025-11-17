@@ -66,8 +66,6 @@ public:
 
     Material material;
 
-    Colour albedo; //TODO: DEPRECATE
-
     // TODO: std::unique_ptr<Geometry> geometry;
 
     std::unique_ptr<Light> light;
@@ -79,7 +77,6 @@ public:
     explicit SceneNode(const std::string& _name = "Node")
         : name(_name)
         , node_type(NodeType::Empty)
-        , albedo(0.7f, 0.7f, 0.7f)
         , parent(nullptr)
         , visible(true)
         , locked(false)

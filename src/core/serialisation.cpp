@@ -155,10 +155,6 @@ QJsonObject SceneSerialiser::serialise_node(const SceneNode* node)
     }
     obj["node_type"] = node_type;
 
-    //TEMP albedo (per-geo baked mat placeholder)
-    //TODO remove
-    obj["albedo"] = colour_to_json(node->albedo);
-
     obj["material"] = serialise_material(node->material);
 
     //geometry/primitive
@@ -212,9 +208,6 @@ std::unique_ptr<SceneNode> SceneSerialiser::deserialise_node(const QJsonObject& 
     else if (node_type == "primitive") node->node_type = NodeType::Primitive;
     else if (node_type == "light") node->node_type = NodeType::Light;
     else if (node_type == "camera") node->node_type = NodeType::Camera;
-
-    //albedo
-    node->albedo = json_to_colour(obj["albedo"].toArray()); //TEMP TODO:remove
 
     node->material = deserialise_material(obj["material"].toObject());
 

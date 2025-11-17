@@ -66,7 +66,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     left_wall->transform.position = Vec3(0, half_room, -half_room);
     left_wall->material = Material::lambertian(red);
-    left_wall->albedo = green;
     scene.get_root()->add_child(std::move(left_wall));
 
     auto right_wall = std::make_unique<SceneNode>("Right Wall");
@@ -77,7 +76,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     right_wall->transform.position = Vec3(room_size, half_room, -half_room);
     right_wall->material = Material::lambertian(green);
-    right_wall->albedo = red;
     scene.get_root()->add_child(std::move(right_wall));
 
     auto floor = std::make_unique<SceneNode>("Floor");
@@ -88,7 +86,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     floor->transform.position = Vec3(half_room, 0, -half_room);
     floor->material = Material::lambertian(white);
-    floor->albedo = white;
     scene.get_root()->add_child(std::move(floor));
 
     auto ceiling = std::make_unique<SceneNode>("Ceiling");
@@ -99,7 +96,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     ceiling->transform.position = Vec3(half_room, room_size, -half_room);
     ceiling->material = Material::lambertian(white);
-    ceiling->albedo = white;
     scene.get_root()->add_child(std::move(ceiling));
 
     auto back_wall = std::make_unique<SceneNode>("Back Wall");
@@ -110,7 +106,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     back_wall->transform.position = Vec3(half_room, half_room, -room_size);
     back_wall->material = Material::lambertian(white);
-    back_wall->albedo = white;
     scene.get_root()->add_child(std::move(back_wall));
 
     auto light_node = std::make_unique<SceneNode>("Area Light");
@@ -127,7 +122,6 @@ void MainWindow::setup_scene_cornell_box() {
     );
     light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
     light_node->material = Material::emissive(light_emission);
-    light_node->albedo = light_emission;
     scene.get_root()->add_child(std::move(light_node));
 
     auto tall_box = std::make_unique<SceneNode>("Tall Box");
@@ -137,7 +131,6 @@ void MainWindow::setup_scene_cornell_box() {
     tall_box->transform.position = Vec3(1.850f, 1.65f, -3.59f);
     tall_box->transform.rotation.y = 15.0f;
     tall_box->material = Material::lambertian(orange);
-    tall_box->albedo = orange;
     scene.get_root()->add_child(std::move(tall_box));
 
     auto short_box = std::make_unique<SceneNode>("Short Box");
@@ -147,7 +140,6 @@ void MainWindow::setup_scene_cornell_box() {
     short_box->transform.position = Vec3(3.7f, 0.825f, -1.8f);
     short_box->transform.rotation.y = -18.0f;
     short_box->material = Material::chequerboard(yellow, red, 4.0f);
-    short_box->albedo = yellow;
     scene.get_root()->add_child(std::move(short_box));
 
     auto sphere = std::make_unique<SceneNode>("Sphere");
@@ -155,7 +147,6 @@ void MainWindow::setup_scene_cornell_box() {
     sphere->primitive = std::make_unique<SpherePrimitive>(0.50f);
     sphere->transform.position = Vec3(3.425f, 2.150f, -1.475f);
     sphere->material = Material::metal(Colour(0.19f, 0.18f, 0.9f));
-    sphere->albedo = Colour(0.19f, 0.18f, 0.9f);
     scene.get_root()->add_child(std::move(sphere));
 
     auto sphere2 = std::make_unique<SceneNode>("Sphere2");
@@ -185,7 +176,6 @@ void MainWindow::setup_scene_cornell_box() {
     test_quad->geo->add_tri(2, 1, 0);
     test_quad->geo->add_tri(2, 3, 1);
     test_quad->material = Material::lambertian(Colour(0.07f, 0.01f, 0.95f));
-    test_quad->albedo = Colour(0.9f, 0.01f, 0.95f);
     test_quad->transform.position = Vec3(1.5f, 3.5f, -3.5f);
 
     scene.get_root()->add_child(std::move(test_quad));
@@ -209,7 +199,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     left_wall->transform.position = Vec3(0, half_room, -half_room);
     left_wall->material = Material::lambertian(green);
-    left_wall->albedo = green;
     scene.get_root()->add_child(std::move(left_wall));
 
     auto right_wall = std::make_unique<SceneNode>("Right Wall");
@@ -220,7 +209,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     right_wall->transform.position = Vec3(room_size, half_room, -half_room);
     right_wall->material = Material::lambertian(red);
-    right_wall->albedo = red;
     scene.get_root()->add_child(std::move(right_wall));
 
     auto floor = std::make_unique<SceneNode>("Floor");
@@ -231,7 +219,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     floor->transform.position = Vec3(half_room, 0, -half_room);
     floor->material = Material::lambertian(white);
-    floor->albedo = white;
     scene.get_root()->add_child(std::move(floor));
 
     auto ceiling = std::make_unique<SceneNode>("Ceiling");
@@ -242,7 +229,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     ceiling->transform.position = Vec3(half_room, room_size, -half_room);
     ceiling->material = Material::lambertian(white);
-    ceiling->albedo = white;
     scene.get_root()->add_child(std::move(ceiling));
 
     auto back_wall = std::make_unique<SceneNode>("Back Wall");
@@ -253,7 +239,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     back_wall->transform.position = Vec3(half_room, half_room, -room_size);
     back_wall->material = Material::lambertian(white);
-    back_wall->albedo = white;
     scene.get_root()->add_child(std::move(back_wall));
 
     auto light_node = std::make_unique<SceneNode>("Area Light");
@@ -270,7 +255,6 @@ void MainWindow::setup_scene_stress_test() {
     );
     light_node->transform.position = Vec3(2.775f, 5.54f, -2.775f);
     light_node->material = Material::emissive(light_emission);
-    light_node->albedo = light_emission;
     scene.get_root()->add_child(std::move(light_node));
 
     // spam 500 random objects
@@ -306,7 +290,6 @@ void MainWindow::setup_scene_stress_test() {
 
         // random colour
         Colour random_colour(colour_dist(seed), colour_dist(seed), colour_dist(seed));
-        node->albedo = random_colour;
 
         // random material
         int mat_type = material_dist(seed);
@@ -319,7 +302,6 @@ void MainWindow::setup_scene_stress_test() {
             break;
         case 2:
             node->material = Material::dielectric(1.5f);
-            node->albedo = Colour(1.0f, 1.0f, 1.0f);
             break;
         }
 

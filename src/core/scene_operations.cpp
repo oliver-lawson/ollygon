@@ -39,7 +39,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_sphere(const std::string& nam
     auto node = std::make_unique<SceneNode>(name);
     node->node_type = NodeType::Primitive;
     node->primitive = std::make_unique<SpherePrimitive>(0.5f);
-    node->albedo = Colour(0.7f, 0.7f, 0.7f);
+    node->material.albedo = Colour(0.7f, 0.7f, 0.7f);
     return node;
 }
 
@@ -47,7 +47,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_cuboid(const std::string& nam
     auto node = std::make_unique<SceneNode>(name);
     node->node_type = NodeType::Primitive;
     node->primitive = std::make_unique<CuboidPrimitive>(Vec3(1.0f, 1.0f, 1.0f));
-    node->albedo = Colour(0.7f, 0.7f, 0.7f);
+    node->material.albedo = Colour(0.7f, 0.7f, 0.7f);
     return node;
 }
 
@@ -58,14 +58,14 @@ std::unique_ptr<SceneNode> SceneOperations::create_quad(const std::string& name)
         Vec3(0.5f, 0, 0),
         Vec3(0, 0.5f, 0)
     );
-    node->albedo = Colour(0.7f, 0.7f, 0.7f);
+    node->material.albedo = Colour(0.7f, 0.7f, 0.7f);
     return node;
 }
 
 std::unique_ptr<SceneNode> SceneOperations::create_empty(const std::string& name) {
     auto node = std::make_unique<SceneNode>(name);
     node->node_type = NodeType::Empty;
-    node->albedo = Colour(0.7f, 0.7f, 0.7f);
+    node->material.albedo = Colour(0.7f, 0.7f, 0.7f);
     return node;
 }
 
@@ -73,7 +73,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_mesh(const std::string& name)
     auto node = std::make_unique<SceneNode>(name);
     node->node_type = NodeType::Mesh;
     node->geo = std::make_unique<Geo>();
-    node->albedo = Colour(0.7f, 0.7f, 0.7f);
+    node->material.albedo = Colour(0.7f, 0.7f, 0.7f);
 
     //empty mesh for now
     return node;
@@ -86,7 +86,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_point_light(const std::string
     node->light->type = LightType::Point;
     node->light->colour = Colour(1.0f, 1.0f, 1.0f);
     node->light->intensity = 10.0f;
-    node->albedo = Colour(1.0f, 1.0f, 1.0f);
+    node->material.albedo = Colour(1.0f, 1.0f, 1.0f);
     return node;
 }
 
@@ -104,7 +104,7 @@ std::unique_ptr<SceneNode> SceneOperations::create_area_light(const std::string&
         Vec3(0.5f, 0, 0),
         Vec3(0, 0, 0.5f)
     );
-    node->albedo = node->light->colour;
+    node->material.albedo = node->light->colour;
     return node;
 }
 

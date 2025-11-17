@@ -228,11 +228,6 @@ void PropertiesPanel::create_material_controls(SceneNode* node, QVBoxLayout* lay
     // albedo (for most material types)
     if (node->material.type != MaterialType::Dielectric) {
         add_colour_row("Albedo", node->material.albedo, 0.0f, 1.0f, 0.01f, grid, row++);
-
-        // sync with legacy albedo field TEMP
-        connect(this, &PropertiesPanel::properties_changed, [node]() {
-            node->albedo = node->material.albedo;
-            });
     }
 
     // emission
