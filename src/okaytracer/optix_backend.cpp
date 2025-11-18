@@ -133,6 +133,9 @@ void OptixBackend::shutdown() {
     if (hitgroup_prog_group) optixProgramGroupDestroy(hitgroup_prog_group);
     if (module) optixModuleDestroy(module);
     if (context) optixDeviceContextDestroy(context);
+    if (d_raygen_record) cudaFree((void*)d_raygen_record);
+    if (d_miss_record) cudaFree((void*)d_miss_record);
+    if (d_hitgroup_record) cudaFree((void*)d_hitgroup_record);
 }
 
 void OptixBackend::create_context() {

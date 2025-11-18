@@ -36,6 +36,8 @@ void Raytracer::start_render(const RenderScene& new_scene, const Camera& new_cam
         }
         
         if (optix_backend && requested_backend == RenderBackend::OptiX) {
+            // TEMP - this rebuilds the GAS each time we render, even if scene's unchanged
+            // TODO: cache scene hash to check this
             optix_backend->build_scene(new_scene);
         }
     }
