@@ -3,6 +3,11 @@
 #include "ray.hpp"
 #include "render_scene.hpp"
 #include "../core/camera.hpp"
+
+#ifdef OLLYGON_USE_OPTIX
+#include "optix_backend.hpp"
+#endif
+
 #include <vector>
 #include <cstdint>
 #include <random>
@@ -13,12 +18,18 @@
 namespace ollygon {
 namespace okaytracer {
 
+enum class RenderBackend {
+    CPU,
+    OptiX
+};
+
 struct RenderConfig {
     int width;
     int height;
     int samples_per_pixel;
     int max_bounces;
     uint64_t seed;
+    RenderBackend backend;
 
     RenderConfig()
         : width(600)
@@ -26,6 +37,7 @@ struct RenderConfig {
         , samples_per_pixel(1000)
         , max_bounces(7)
         , seed(1)
+        , backend(RenderBackend::CPU)
     {}
 };
 
@@ -56,6 +68,8 @@ public:
     void render_tile(int start_x, int end_x, int start_y, int end_y, const CameraBasis& basis);
 
     uint64_t hash_pixel(int x, int y, uint64_t seed) const;
+
+    RenderBackend get_active_backend() const { return active_backend; }
 
 private:
     CameraBasis compute_camera_basis() const;
@@ -99,6 +113,12 @@ private:
     }
 
     int num_threads = std::thread::hardware_concurrency();
+
+    //GPU
+#ifdef OLLYGON_USE_OPTIX
+    std::unique_ptr<OptixBackend> optix_backend;
+#endif
+    RenderBackend active_backend;
 };
 
 } // namespace okaytracer

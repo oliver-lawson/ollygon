@@ -1,7 +1,11 @@
+#define NOMINMAX
+
 #include "raytracer.hpp"
+
 #include <cmath>
 #include <algorithm>
 #include <limits>
+#include <iostream>
 
 namespace ollygon {
 namespace okaytracer {
@@ -16,10 +20,38 @@ Raytracer::~Raytracer() {
 }
 
 void Raytracer::start_render(const RenderScene& new_scene, const Camera& new_camera, const RenderConfig& new_config) {
+    // store the desired backend from config
+    RenderBackend requested_backend = new_config.backend;
+
+#ifdef OLLYGON_USE_OPTIX
+    if (requested_backend == RenderBackend::OptiX) {
+        // try to initialise OptiX backend if not already done
+        if (!optix_backend) {
+            optix_backend = std::make_unique<OptixBackend>();
+            if (!optix_backend->initialise()) {
+                std::cerr << "failed to initialise OptiX, falling back to CPU\n";
+                requested_backend = RenderBackend::CPU;
+                optix_backend.reset(); //clean up failed backend
+            }
+        }
+        
+        if (optix_backend && requested_backend == RenderBackend::OptiX) {
+            optix_backend->build_scene(new_scene);
+        }
+    }
+#else
+    // OptiX not compiled successfully!  fallback to CPU
+    if (requested_backend == RenderBackend::OptiX) {
+        std::cerr << "OptiX not available, using CPU backend\n";
+        requested_backend = RenderBackend::CPU;
+    }
+#endif
+
+    active_backend = requested_backend;
     scene = new_scene;
     camera = new_camera;
     config = new_config;
-    
+
     pixels.resize(config.width * config.height * 3, 0.0f);
     sample_buffer.resize(config.width * config.height * 3, 0.0f);
 
@@ -43,6 +75,44 @@ void Raytracer::render_one_sample() {
         rendering = false;
         return;
     }
+
+#ifdef OLLYGON_USE_OPTIX
+    if (active_backend == RenderBackend::OptiX && optix_backend) {
+        optix_backend->render_sample(
+            camera,
+            config.width, config.height,
+            current_sample,
+            config.max_bounces,
+            config.seed
+        );
+
+        // rendered! - download results
+        std::vector<float> optix_pixels;
+        optix_backend->download_pixels(optix_pixels);
+
+        // make sure the downloaded buffer matches the expected size. this seems to happen quite easily..
+        if (optix_pixels.size() == sample_buffer.size()) {
+            sample_buffer = optix_pixels;
+        }
+        else {
+            std::cerr << "OptiX pixel buffer size mismatch\n";
+            std::fill(sample_buffer.begin(), sample_buffer.end(), 0.0f);
+        }
+
+        // accumulate, same as CPU
+        float weight = 1.0f / float(current_sample + 1);
+        for (size_t i = 0; i < pixels.size() && i < sample_buffer.size(); i++) {
+            pixels[i] = pixels[i] * (1.0f - weight) + sample_buffer[i] * weight;
+        }
+
+        current_sample++;
+
+        if (current_sample >= config.samples_per_pixel) {
+            rendering = false;
+        }
+        return;
+    }
+#endif
 
     std::fill(sample_buffer.begin(), sample_buffer.end(), 0.0f);
 

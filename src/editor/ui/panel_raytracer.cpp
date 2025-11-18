@@ -42,6 +42,16 @@ void RaytracerWindow::setup_ui() {
     QGroupBox* controls_group = new QGroupBox("Render Settings");
     QHBoxLayout* controls_layout = new QHBoxLayout(controls_group);
 
+    QLabel* backend_label = new QLabel("Backend:");
+    backend_combo = new QComboBox();
+    backend_combo->addItem("CPU");
+#ifdef OLLYGON_USE_OPTIX
+    backend_combo->addItem("OptiX (GPU)");
+#endif
+    controls_layout->addWidget(backend_label);
+    controls_layout->addWidget(backend_combo);
+
+
     width_spinbox = new QSpinBox();
     width_spinbox->setRange(64, 4096);
     width_spinbox->setValue(render_config.width);
@@ -136,8 +146,29 @@ void RaytracerWindow::start_render() {
     //convert scene
     okaytracer::RenderScene render_scene = okaytracer::RenderScene::from_scene(scene);
 
+    // set backend from ui
+#ifdef OLLYGON_USE_OPTIX
+    if (backend_combo->currentText() == "OptiX (GPU)") {
+        render_config.backend = okaytracer::RenderBackend::OptiX;
+        progress_label->setText("Initialising OptiX...");
+    }
+    else {
+        render_config.backend = okaytracer::RenderBackend::CPU;
+        progress_label->setText("Starting CPU render...");
+    }
+#else
+    render_config.backend = okaytracer::RenderBackend::CPU;
+    progress_label->setText("Starting CPU render...");
+#endif
+
     // start raytracer!
     raytracer.start_render(render_scene, *camera, render_config);
+
+    //update ui to show which backend is actually running
+    QString backend_name = (raytracer.get_active_backend() == okaytracer::RenderBackend::OptiX)
+        ? "OptiX (GPU)"
+        : "CPU";
+    progress_label->setText(QString("Rendering on %1...").arg(backend_name));
 
     // prepare display image
     display_image = QImage(render_config.width, render_config.height, QImage::Format_RGB32);

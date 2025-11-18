@@ -14,7 +14,8 @@ struct RenderPrimitive {
     enum class Type {
         Sphere,
         Quad,
-        Triangle
+        Triangle,
+        Cuboid // even if we handle this by quads/tris in our renderers, might be useful to optimise for and keep here
     };
 
     Type type;

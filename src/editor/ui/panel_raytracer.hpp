@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QComboBox> //TODO maybe forward dec some of these..
 #include "core/scene.hpp"
 #include "core/camera.hpp"
 #include "okaytracer/raytracer.hpp"
@@ -52,6 +53,7 @@ private:
     QSpinBox* width_spinbox;
     QSpinBox* height_spinbox;
     QLabel* progress_label;
+    QComboBox* backend_combo;
 
     QTimer* update_timer;
 
