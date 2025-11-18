@@ -1,22 +1,24 @@
 # ollygon
 
-#### 3d editor and renderer built in C++/OpenGL
+![](assets/renders/ollygon_ycPkO2QWBm.jpg)
 
-
-### Current status:
-- Qt hierarchy/properties panel & a cornell box in OpenGL
+#### 3d Editor and Raytracer in C++/Qt
+- Viewport: OpenGL
+- CPU Raytracing - Multi-threaded & deterministic
+- GPU Raytracing - CUDA/OptiX
 
 ### Goals:
 Personal project with the aim of learning more about:
 - C++ application building with Qt
 - Geometry
-- Light Transport (eventually):  I'd like to use this as a vehicle to work through my copy of PBRT vol4, having only got as far as Peter Shirley's excellent but short RT introduction books before.
+- Light Transport
 
 ### Building:
 Requires:
 - CMake 3.16
-- Qt 6.9.1
+- Qt 6.9.x
 - C++ 20 compiler
+- For GPU Raytracing, CUDA/Optix.  I'm using CUDA ver 13.0, OptiX SDK 9.0.0.  OptiX back to 7.x _may_ be supported, but 8.0+ is recommended.  CMake can be updated for other CUDA versions
 
 #### Windows (VS2022)
 run the build .bat scripts
