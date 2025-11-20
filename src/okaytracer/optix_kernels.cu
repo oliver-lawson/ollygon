@@ -41,7 +41,10 @@ struct Vec3 {
 struct Colour {
     float r, g, b;
 
-    __device__ Colour() : r(0), g(0), b(0) {}
+    // explicitly default the default constructor for POD compatibility with __constant__, or it can refuse to compile this
+    // kernel eg with uninitialised Colours in Sky{} struct below
+    __device__ Colour() = default;
+    
     __device__ Colour(float r_, float g_, float b_) : r(r_), g(g_), b(b_) {}
 
     __device__ Colour operator*(float s) const { return Colour(r * s, g * s, b * s); }
@@ -67,6 +70,31 @@ struct Material {
     Colour chequerboard_colour_a;
     Colour chequerboard_colour_b;
     float chequerboard_scale;
+};
+
+struct Sky {
+    Colour colour_bottom;
+    Colour colour_top;
+    float bottom_height;
+    float top_height;
+
+    __device__ Colour sample(const Vec3& direction) const {
+        // map direction.z from [-1,1] to [0,1]
+        float t = (direction.z + 1.0f) * 0.5f;
+
+        if (t <= bottom_height) return colour_bottom;
+        if (t >= top_height) return colour_top;
+
+        // interpolate
+        float range = top_height - bottom_height;
+        float blend = (t - bottom_height) / range;
+
+        return Colour(
+            colour_bottom.r * (1.0f - blend) + colour_top.r * blend,
+            colour_bottom.g * (1.0f - blend) + colour_top.g * blend,
+            colour_bottom.b * (1.0f - blend) + colour_top.b * blend
+        );
+    }
 };
 
 enum class PrimitiveType : int {
@@ -106,6 +134,8 @@ struct Params {
     OptixTraversableHandle handle;
     RenderPrimitive* primitives;
     int primitive_count;
+
+    Sky sky;
 };
 
 extern "C" {
@@ -599,13 +629,9 @@ extern "C" __global__ void __raygen__rg() {
         );
 
         if (scatter_event == 2)
-        {   // missed
-            Vec3 unit_dir = current_dir;
-            float t = 0.5f * (unit_dir.z + 1.0f);
-            Colour white(1.0f, 1.0f, 1.0f);
-            Colour blue(0.5f, 0.7f, 1.0f);
-            Colour sky = (white * (1.0f - t) + blue * t) * 0.005f;
-            accumulated = accumulated + throughput * sky;
+        {   // missed? sample sky
+            Colour sky_colour = params.sky.sample(current_dir);
+            accumulated = accumulated + throughput * sky_colour;
             break;
         }
         else if (scatter_event == 1)

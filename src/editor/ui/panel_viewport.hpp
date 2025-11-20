@@ -44,6 +44,7 @@ protected:
 
 private:
     void rebuild_scene_geometry();
+    void render_sky_background();
     void render_node(SceneNode* node, bool render_transparent);
 
     Scene* scene;
@@ -54,6 +55,11 @@ private:
     QOpenGLVertexArrayObject vao;
     QOpenGLBuffer vbo;
     QOpenGLBuffer ebo;
+
+    QOpenGLShaderProgram* sky_shader_program;
+    QOpenGLVertexArrayObject sky_vao;
+    QOpenGLBuffer sky_vbo;
+    QOpenGLBuffer sky_ebo;
 
     std::vector<float> scene_verts;
     std::vector<unsigned int> scene_indices;

@@ -6,6 +6,7 @@
 #include "core/scene.hpp"
 #include "core/selection_handler.hpp"
 #include "panel_scene_hierarchy.hpp"
+#include "panel_scene_settings.hpp"
 
 namespace ollygon {
 
@@ -46,6 +47,7 @@ private:
     QDockWidget* scene_dock;
     PanelSceneHierarchy* scene_hierarchy;
     RaytracerWindow* raytracer_window;
+    PanelSceneSettings* scene_settings_panel;
 
     QString current_filepath;
 };

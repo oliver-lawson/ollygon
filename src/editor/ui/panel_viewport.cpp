@@ -26,6 +26,12 @@ namespace ollygon {
         vbo.destroy();
         ebo.destroy();
         delete shader_program;
+
+        sky_vao.destroy();
+        sky_vbo.destroy();
+        sky_ebo.destroy();
+        delete sky_shader_program;
+
         doneCurrent();
     }
 
@@ -47,15 +53,22 @@ namespace ollygon {
 
     void PanelViewport::initializeGL() {
         initializeOpenGLFunctions();
-        //glClearColor(1.0f, 0.1f, 0.1f, 1.0f); // the "something is very wrong" colour
 
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f); // TEMP the "normal background" colour.  TODO: tie this to a proper world setting synced across to okaytracer
+        // use scene sky bottom colour for clear colour
+        if (scene) {
+            const Sky& sky = scene->get_sky();
+            glClearColor(sky.colour_bottom.r, sky.colour_bottom.g, sky.colour_bottom.b, 1.0f);
+        }
+        else {
+            glClearColor(1.0f, 0.1f, 0.1f, 1.0f); // error red
+        }
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE); // TODO add control
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+        // == object shader ==
         shader_program = new QOpenGLShaderProgram(this);
 
         const char* vertex_shader = R"(
@@ -114,6 +127,11 @@ namespace ollygon {
             return albedo;
         }
 
+        // gamma correction: fixed to gamma = 2.0 as in raytracer
+        vec3 gamma_correct(vec3 colour) {
+            return sqrt(colour);
+        }
+
         void main() {
             vec3 base_colour = get_material_colour();
             vec3 norm = normalize(frag_normal);
@@ -124,6 +142,7 @@ namespace ollygon {
                 if (is_selected) {
                     result = mix(result, vec3(1.0, 0.9, 0.4), 0.3);
                 }
+                result = gamma_correct(result);
                 FragColor = vec4(result, 1.0);
                 return;
             }
@@ -163,6 +182,8 @@ namespace ollygon {
             if (is_selected) {
                 result = mix(result, vec3(1.0, 0.9, 0.4), 0.3);
             }
+
+            result = gamma_correct(result);
             
             FragColor = vec4(result, alpha);
         }
@@ -177,6 +198,91 @@ namespace ollygon {
         vbo.create();
         ebo.create();
         vao.release();
+
+        // == sky shader ==
+
+        const char* sky_vertex_shader = R"(
+        #version 330 core
+        layout(location = 0) in vec2 position;
+
+        out vec3 world_direction;
+
+        uniform mat4 inv_view_projection;
+
+        void main() {
+            // convert to clip space
+            vec4 clip_pos = vec4(position, 1.0, 1.0);
+    
+            // convert to ws dir
+            vec4 world_pos = inv_view_projection * clip_pos;
+            world_direction = normalize(world_pos.xyz / world_pos.w);
+    
+            gl_Position = clip_pos;
+        }
+        )";
+
+        const char* sky_fragment_shader = R"(
+        #version 330 core
+        in vec3 world_direction;
+        out vec4 FragColor;
+
+        uniform vec3 sky_bottom_colour;
+        uniform vec3 sky_top_colour;
+        uniform float sky_bottom_height;
+        uniform float sky_top_height;
+
+        // gamma correction: fixed to gamma = 2.0 as in raytracer
+        vec3 gamma_correct(vec3 colour) {
+            return sqrt(colour);
+        }
+
+        void main() {
+            // must match Sky::sample() !
+            float t = (world_direction.z + 1.0) * 0.5;
+    
+            vec3 sky_colour;
+            if (t <= sky_bottom_height) {
+                sky_colour = sky_bottom_colour;
+            } else if (t >= sky_top_height) {
+                sky_colour = sky_top_colour;
+            } else {
+                float range = sky_top_height - sky_bottom_height;
+                float blend = (t - sky_bottom_height) / range;
+                sky_colour = mix(sky_bottom_colour, sky_top_colour, blend);
+            }
+
+            sky_colour = gamma_correct(sky_colour);
+    
+            FragColor = vec4(sky_colour, 1.0);
+        }
+        )";
+
+        sky_shader_program = new QOpenGLShaderProgram(this);
+        sky_shader_program->addShaderFromSourceCode(QOpenGLShader::Vertex, sky_vertex_shader);
+        sky_shader_program->addShaderFromSourceCode(QOpenGLShader::Fragment, sky_fragment_shader);
+        sky_shader_program->link();
+
+        // make fullscreen quad for this
+        float sky_quad_vertices[] = { -1.0f, -1.0f, 1.0f, -1.0f, 1.0f,  1.0f, -1.0f,  1.0f };
+        unsigned int sky_quad_indices[] = { 0, 1, 2, 0, 2, 3 };
+
+        sky_vao.create();
+        sky_vao.bind();
+
+        sky_vbo = QOpenGLBuffer(QOpenGLBuffer::VertexBuffer);
+        sky_vbo.create();
+        sky_vbo.bind();
+        sky_vbo.allocate(sky_quad_vertices, sizeof(sky_quad_vertices));
+
+        sky_ebo = QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
+        sky_ebo.create();
+        sky_ebo.bind();
+        sky_ebo.allocate(sky_quad_indices, sizeof(sky_quad_indices));
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+
+        sky_vao.release();
     }
 
     void PanelViewport::resizeGL(int w, int h) {
@@ -270,10 +376,54 @@ namespace ollygon {
         geometry_dirty = false;
     }
 
+    void PanelViewport::render_sky_background() {
+        if (!scene) return;
+
+        const Sky& sky = scene->get_sky();
+
+        glDepthMask(GL_FALSE);
+        glDisable(GL_DEPTH_TEST);
+
+        sky_shader_program->bind();
+
+        // calculate combined view-projection matrix and its inverse
+        Mat4 view = camera.get_view_matrix();
+        Mat4 projection = camera.get_projection_matrix();
+        Mat4 view_projection = projection * view;
+        Mat4 inv_view_projection = view_projection.inverse_general_row_major();
+
+        // pass the inverse view-projection matrix
+        sky_shader_program->setUniformValue("inv_view_projection", inv_view_projection.to_qmatrix());
+
+        // sky properties
+        sky_shader_program->setUniformValue("sky_bottom_colour",
+            QVector3D(sky.colour_bottom.r, sky.colour_bottom.g, sky.colour_bottom.b));
+        sky_shader_program->setUniformValue("sky_top_colour",
+            QVector3D(sky.colour_top.r, sky.colour_top.g, sky.colour_top.b));
+        sky_shader_program->setUniformValue("sky_bottom_height", sky.bottom_height);
+        sky_shader_program->setUniformValue("sky_top_height", sky.top_height);
+
+        sky_vao.bind();
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        sky_vao.release();
+
+        sky_shader_program->release();
+
+        glDepthMask(GL_TRUE);
+        glEnable(GL_DEPTH_TEST);
+    }
+
     void PanelViewport::paintGL() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (!scene) return;
+        
+        if (scene) {
+            const Sky& sky = scene->get_sky();
+            glClearColor(sky.colour_bottom.r, sky.colour_bottom.g, sky.colour_bottom.b, 1.0f);
+
+            render_sky_background();
+        }
 
         rebuild_scene_geometry();
 
@@ -283,8 +433,8 @@ namespace ollygon {
         Mat4 projection = camera.get_projection_matrix();
         Vec3 cam_pos = camera.get_pos();
 
-        shader_program->setUniformValue("view", QMatrix4x4(view.floats()).transposed());
-        shader_program->setUniformValue("projection", QMatrix4x4(projection.floats()).transposed());
+        shader_program->setUniformValue("view", view.to_qmatrix());
+        shader_program->setUniformValue("projection", projection.to_qmatrix());
         // TEMP
         // light pos is baked to cornell area light pos for now
         shader_program->setUniformValue("light_pos", QVector3D(2.775f, 2.775f, 5.54f));
@@ -332,7 +482,7 @@ namespace ollygon {
                 Mat4 model = node->transform.to_matrix();
                 Mat4 model_y_up = Mat4::swizzle_z_up_and_y_up() * model; //convert to openGL
 
-                shader_program->setUniformValue("model", QMatrix4x4(model.floats()).transposed());
+                shader_program->setUniformValue("model", model.to_qmatrix());
 
                 // set mat properties
                 shader_program->setUniformValue("material_type", static_cast<int>(node->material.type));

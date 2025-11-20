@@ -35,6 +35,8 @@ struct OptixParams {
     OptixTraversableHandle handle;
     GpuRenderPrimitive* primitives;
     int primitive_count;
+
+    GpuSky sky;
 };
 
 class OptixBackend {
@@ -70,6 +72,7 @@ private:
     GpuColour to_gpu_colour(const Colour& c);
     GpuMaterial to_gpu_material(const Material& mat);
     GpuRenderPrimitive to_gpu_primitive(const RenderPrimitive& prim);
+    GpuSky to_gpu_sky(const Sky& sky);
 
     OptixDeviceContext context;
     OptixModule module;

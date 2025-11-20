@@ -397,14 +397,9 @@ Colour Raytracer::ray_colour(const Ray& ray, int depth, uint64_t& rng) const
         return Colour(0, 0, 0);
     }
 
-    // bg/TEMP sky gradient, dark for cool renders
-    //TODO: unified world bg settings
-    Vec3 unit_dir = ray.direction;
-    float t = 0.5f * (unit_dir.z + 1.0f);
-    Colour white(1.0f, 1.0f, 1.0f);
-    Colour blue(0.5f, 0.7f, 1.0f);
-
-    return (white * (1.0f - t) + blue * t) * 0.005f;
+    // background - sample from scene.sky
+    Colour sky_colour = scene.sky.sample(ray.direction);
+    return sky_colour;
 }
 
 bool Raytracer::scatter(const Ray& ray_in, const Intersection& rec, Colour& attenuation, Ray& scattered, uint64_t& rng) const

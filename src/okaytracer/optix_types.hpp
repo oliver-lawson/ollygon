@@ -34,6 +34,13 @@ struct GpuMaterial {
     float chequerboard_scale;
 };
 
+struct GpuSky {
+    GpuColour colour_bottom;
+    GpuColour colour_top;
+    float bottom_height;
+    float top_height;
+};
+
 enum class GpuPrimitiveType : int {
     Sphere = 0,
     Quad = 1,

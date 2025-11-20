@@ -23,11 +23,13 @@ MainWindow::MainWindow(QWidget* parent)
     , scene_dock(nullptr)
     , scene_hierarchy(nullptr)
     , raytracer_window(nullptr)
+    , scene_settings_panel(nullptr)
 {
     setWindowTitle("ollygon");
     resize(1280, 720);
 
     setup_scene_cornell_box();
+    //setup_scene_stress_test();
     setup_ui();
     create_menus();
     show_raytracer_window();
@@ -321,6 +323,11 @@ void MainWindow::create_dock_widgets() {
     scene_dock = new QDockWidget("Scene", this);
     scene_dock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
 
+    // scene settings panel
+    scene_settings_panel = new PanelSceneSettings(this);
+    scene_settings_panel->set_scene(&scene);
+    addDockWidget(Qt::RightDockWidgetArea, scene_settings_panel);
+
     scene_hierarchy = new PanelSceneHierarchy();
     scene_hierarchy->set_scene(&scene);
     scene_hierarchy->set_selection_handler(&selection_handler);
@@ -334,6 +341,11 @@ void MainWindow::create_dock_widgets() {
     connect(scene_hierarchy, &PanelSceneHierarchy::scene_modified, [this]() {
         viewport->mark_geometry_dirty();
         viewport->update();
+        });
+    // scene settings to viewport update
+    connect(scene_settings_panel, &PanelSceneSettings::settings_changed,
+        viewport, [this]() {
+            viewport->update();
         });
 
     // connect node creation/deletion
@@ -379,6 +391,7 @@ void MainWindow::create_menus() {
     QMenu* view_menu = menuBar()->addMenu("&View");
     view_menu->addAction(properties_panel->toggleViewAction());
     view_menu->addAction(scene_dock->toggleViewAction());
+    view_menu->addAction(scene_settings_panel->toggleViewAction());
 
     QMenu* render_menu = menuBar()->addMenu("&Render");
     QAction* show_raytracer_action = new QAction("Show &Raytracer", this);
@@ -458,6 +471,9 @@ void MainWindow::load_scene() {
 }
 
 void MainWindow::refresh_scene_ui() {
+    if (scene_settings_panel) {
+        scene_settings_panel->refresh_ui();
+    }
     scene_hierarchy->rebuild_tree();
     selection_handler.clear_selection();
     viewport->mark_geometry_dirty();

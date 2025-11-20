@@ -4,6 +4,7 @@
 #include "../core/colour.hpp"
 #include "../core/scene.hpp"
 #include "../core/material.hpp"
+#include "../core/sky.hpp"
 #include <vector>
 
 namespace ollygon {
@@ -46,6 +47,8 @@ public:
     std::vector<RenderPrimitive> primitives;
 
     static RenderScene from_scene(const Scene* scene); //convert
+
+    Sky sky;
 
 private:
     static void add_node_recursive(

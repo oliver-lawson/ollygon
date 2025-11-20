@@ -598,6 +598,9 @@ void OptixBackend::build_scene(const RenderScene& scene)
     params.handle = gas_handle;
 
     std::cout << "GAS built with " << scene.primitives.size() << " primitives\n";
+
+    //other non-primitive things. just sky for now:
+    params.sky = to_gpu_sky(scene.sky);
 }
 
 
@@ -768,6 +771,15 @@ GpuRenderPrimitive OptixBackend::to_gpu_primitive(const RenderPrimitive& prim) {
     gpu_prim.material = to_gpu_material(prim.material);
 
     return gpu_prim;
+}
+
+GpuSky OptixBackend::to_gpu_sky(const Sky& sky) {
+    GpuSky gpu_sky;
+    gpu_sky.colour_bottom = to_gpu_colour(sky.colour_bottom);
+    gpu_sky.colour_top = to_gpu_colour(sky.colour_top);
+    gpu_sky.bottom_height = sky.bottom_height;
+    gpu_sky.top_height = sky.top_height;
+    return gpu_sky;
 }
 
 } // namespace okaytracer

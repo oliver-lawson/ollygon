@@ -5,6 +5,7 @@
 #include "core/colour.hpp"
 #include "core/geometry.hpp"
 #include "core/material.hpp"
+#include "core/sky.hpp"
 #include <memory>
 #include <vector>
 #include <string>
@@ -118,13 +119,19 @@ class Scene {
 public:
     Scene() {
         root = std::make_unique<SceneNode>("Root");
+        m_sky = Sky::default_sky();
     }
 
     SceneNode* get_root() {return root.get();}
     const SceneNode* get_root() const {return root.get();}
 
+    Sky& get_sky() { return m_sky; }
+    const Sky& get_sky() const { return m_sky; }
+
+
 private:
     std::unique_ptr<SceneNode> root;
+    Sky m_sky;
 };
 
 } // namespace ollygon

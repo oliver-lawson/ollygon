@@ -6,6 +6,7 @@ namespace okaytracer {
 
 RenderScene RenderScene::from_scene(const Scene* scene) {
     RenderScene render_scene;
+    render_scene.sky = scene->get_sky();
 
     if (!scene) return render_scene;
 
