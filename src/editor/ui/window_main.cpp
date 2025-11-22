@@ -42,6 +42,7 @@ void MainWindow::setup_ui() {
     viewport = new PanelViewport(this);
     viewport->set_scene(&scene);
     viewport->set_selection_handler(&selection_handler);
+    viewport->set_edit_mode_manager(&edit_mode_manager);
     setCentralWidget(viewport);
 
     create_dock_widgets();

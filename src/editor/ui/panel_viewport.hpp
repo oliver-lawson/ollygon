@@ -10,6 +10,8 @@
 #include "core/scene.hpp"
 #include "core/camera.hpp"
 #include "core/selection_handler.hpp"
+#include "core/edit_mode.hpp"
+#include "toolbar_edit_mode.hpp"
 
 namespace ollygon {
 
@@ -28,6 +30,7 @@ public:
 
     void set_scene(Scene* new_scene);
     void set_selection_handler(SelectionHandler* handler);
+    void set_edit_mode_manager(EditModeManager* manager);
     Camera* get_camera() { return &camera; }
 
     void mark_geometry_dirty() { geometry_dirty = true; }
@@ -41,15 +44,18 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override;
     void mouseReleaseEvent(QMouseEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 private:
     void rebuild_scene_geometry();
     void render_sky_background();
     void render_node(SceneNode* node, bool render_transparent);
+    void position_toolbar();
 
     Scene* scene;
     Camera camera;
     SelectionHandler* selection_handler;
+    EditModeManager* edit_mode_manager;
 
     QOpenGLShaderProgram* shader_program;
     QOpenGLVertexArrayObject vao;
@@ -69,6 +75,8 @@ private:
     // camera controlling
     bool is_camera_dragging;
     QPoint last_mouse_pos;
+    // UI overlay
+    ToolbarEditMode* toolbar;
 
 signals:
     void camera_moved();

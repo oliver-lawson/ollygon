@@ -1,6 +1,7 @@
 #include "panel_viewport.hpp"
 #include <QOpenGLShader>
 #include <QWheelEvent>
+#include <QResizeEvent>
 #include <cmath>
 #include <iostream>
 #include "panel_scene_hierarchy.hpp"
@@ -16,6 +17,7 @@ namespace ollygon {
         , selection_handler(nullptr)
         , geometry_dirty(true)
         , is_camera_dragging(false)
+        , toolbar(nullptr)
     {
         setMouseTracking(true);
     }
@@ -47,6 +49,45 @@ namespace ollygon {
         // connect to selection changes for redraw trigger
         if (handler) {
             connect(handler, &SelectionHandler::selection_changed,
+                this, [this]() { update(); });
+        }
+    }
+
+    void PanelViewport::set_edit_mode_manager(EditModeManager* manager) {
+        edit_mode_manager = manager;
+
+        // create toolbar if we don't have one yet
+        if (!toolbar && manager) {
+            toolbar = new ToolbarEditMode(manager, this);
+            toolbar->setStyleSheet(
+                "QToolBar { border: none; background: transparent; }"
+                "QPushButton { "
+                "  padding: 6px 12px; "
+                "  background: rgba(40, 40, 40, 200); "
+                "  border: 1px solid rgba(80, 80, 80, 200); "
+                "  border-radius: 4px; "
+                "  color: #ddd; "
+                "}"
+                "QPushButton:hover { "
+                "  background: rgba(60, 60, 60, 220); "
+                "  border: 1px solid rgba(100, 100, 100, 220); "
+                "}"
+                "QPushButton:checked { "
+                "  background: rgba(255, 140, 0, 200); "
+                "  border: 1px solid rgba(255, 160, 30, 220); "
+                "  color: white; "
+                "}"
+                "QPushButton:disabled { "
+                "  background: rgba(30, 30, 30, 150); "
+                "  color: #666; "
+                "}"
+            );
+            position_toolbar();
+        }
+
+        // connect to mode changes for viewport updates
+        if (manager) {
+            connect(manager, &EditModeManager::mode_changed,
                 this, [this]() { update(); });
         }
     }
@@ -520,6 +561,16 @@ namespace ollygon {
         }
     }
 
+    void PanelViewport::position_toolbar() {
+        if (!toolbar) return;
+
+        // top-left with some padding for now
+        int padding = 8;
+        toolbar->move(padding, padding);
+        toolbar->adjustSize();
+        toolbar->raise();// on top!
+    }
+
     void PanelViewport::mousePressEvent(QMouseEvent* event) {
         if (!scene) return;
 
@@ -546,7 +597,21 @@ namespace ollygon {
                                        + up * (y_ndc * viewport_half_height);
                 ray_dir = ray_dir.normalised();
 
-                selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
+                //don't just select - utilise mode system
+                if (edit_mode_manager) {
+                    if (edit_mode_manager->is_object_mode()) {
+                        selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
+                    }
+                    else {
+                        //component edit mode - raycast against select object's geo
+                        //TODO: implement vert/edge/face selection here
+                        selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
+                    }
+                }
+                else { // no edit_mode_manager
+                    //fallback to object selection.  or maybe should fail more loudly?
+                    selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
+                }
             }
         }
 
@@ -597,6 +662,11 @@ namespace ollygon {
         emit camera_moved();
         update();
         event->accept();
+    }
+
+    void PanelViewport::resizeEvent(QResizeEvent* event) {
+        QOpenGLWidget::resizeEvent(event);
+        position_toolbar();
     }
 
 } // namespace ollygon

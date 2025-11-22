@@ -7,6 +7,7 @@
 #include "core/selection_handler.hpp"
 #include "panel_scene_hierarchy.hpp"
 #include "panel_scene_settings.hpp"
+#include "toolbar_edit_mode.hpp"
 
 namespace ollygon {
 
@@ -41,6 +42,7 @@ private:
 
     Scene scene;
     SelectionHandler selection_handler;
+    EditModeManager edit_mode_manager;
 
     PanelViewport* viewport;
     PropertiesPanel* properties_panel;
