@@ -404,6 +404,28 @@ void MainWindow::setup_shortcuts() {
     // delete selected node
     QShortcut* delete_shortcut = new QShortcut(QKeySequence::Delete, this);
     connect(delete_shortcut, &QShortcut::activated, this, &MainWindow::on_delete_pressed);
+
+    // mode shortcuts
+    QShortcut* mode_1 = new QShortcut(QKeySequence(Qt::Key_1), this);
+    connect(mode_1, &QShortcut::activated, [this]() {
+        edit_mode_manager.set_mode(EditMode::Vertex);
+        });
+    QShortcut* mode_2 = new QShortcut(QKeySequence(Qt::Key_2), this);
+    connect(mode_2, &QShortcut::activated, [this]() {
+        edit_mode_manager.set_mode(EditMode::Edge);
+        });
+    QShortcut* mode_3 = new QShortcut(QKeySequence(Qt::Key_3), this);
+    connect(mode_3, &QShortcut::activated, [this]() {
+        edit_mode_manager.set_mode(EditMode::Face);
+        });
+    QShortcut* mode_4 = new QShortcut(QKeySequence(Qt::Key_4), this);
+    connect(mode_4, &QShortcut::activated, [this]() {
+        edit_mode_manager.set_mode(EditMode::Object);
+        });
+    QShortcut* mode_5 = new QShortcut(QKeySequence(Qt::Key_5), this);
+    connect(mode_5, &QShortcut::activated, [this]() {
+        edit_mode_manager.set_mode(EditMode::Sculpt);
+        });
 }
 
 void MainWindow::on_delete_pressed() {
