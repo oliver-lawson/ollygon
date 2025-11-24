@@ -112,7 +112,7 @@ void SceneHierarchyTree::paint_item_recursive(QTreeWidgetItem* item, QPainter* p
 
     // draw selection
     SceneNode* node = get_node_from_item(item);
-    if (node && selection_handler && selection_handler->get_selected() == node) {
+    if (node && selection_handler && selection_handler->get_selected_node() == node) {
         QColor selection_colour(255, 140, 0, 50);
         painter->fillRect(item_rect, selection_colour);
     }

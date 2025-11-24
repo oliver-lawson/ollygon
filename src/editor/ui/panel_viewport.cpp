@@ -240,6 +240,43 @@ namespace ollygon {
         ebo.create();
         vao.release();
 
+        // == component highlight shader ==
+
+        component_shader_program = new QOpenGLShaderProgram(this);
+
+        const char* component_vertex_shader = R"(
+        #version 330 core
+        layout(location = 0) in vec3 position;
+        
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+        
+        void main() {
+            gl_Position = projection * view * model * vec4(position, 1.0);
+        }
+    )";
+
+        const char* component_fragment_shader = R"(
+        #version 330 core
+        out vec4 FragColor;
+        
+        uniform vec3 highlight_colour;
+        
+        void main() {
+            FragColor = vec4(highlight_colour, 1.0);
+        }
+    )";
+
+        component_shader_program->addShaderFromSourceCode(
+            QOpenGLShader::Vertex, component_vertex_shader);
+        component_shader_program->addShaderFromSourceCode(
+            QOpenGLShader::Fragment, component_fragment_shader);
+        component_shader_program->link();
+
+        component_vao.create();
+        component_vbo.create();
+
         // == sky shader ==
 
         const char* sky_vertex_shader = R"(
@@ -324,6 +361,160 @@ namespace ollygon {
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
 
         sky_vao.release();
+    }
+
+    // == edit draws ==
+
+    void PanelViewport::render_component_selection()
+    {
+        if (!selection_handler || !edit_mode_manager) return;
+
+        SceneNode* selected = selection_handler->get_selected_node();
+        if (!selected || selected->node_type != NodeType::Mesh || !selected->geo) {
+            return;
+        }
+
+        const ComponentSelection& comp_sel = selection_handler->get_component_selection();
+        if (comp_sel.is_empty()) return;
+
+        Mat4 model = selected->transform.to_matrix();
+        Mat4 view = camera.get_view_matrix();
+        Mat4 projection = camera.get_projection_matrix();
+
+        component_shader_program->bind();
+        component_shader_program->setUniformValue("model", model.to_qmatrix());
+        component_shader_program->setUniformValue("view", view.to_qmatrix());
+        component_shader_program->setUniformValue("projection", projection.to_qmatrix());
+
+        EditMode mode = edit_mode_manager->get_mode();
+
+        QVector3D colour;
+        switch (mode) {
+        case EditMode::Vertex:
+            colour = QVector3D(1.0f, 0.7f, 0.0f);
+            break;
+        case EditMode::Edge:
+            colour = QVector3D(1.0f, 1.0f, 0.0f);
+            break;
+        case EditMode::Face:
+            colour = QVector3D(0.2f, 0.77f, 1.0f);
+            break;
+        default:
+            colour = QVector3D(1.0f, 1.0f, 1.0f);
+            break;
+        }
+        component_shader_program->setUniformValue("highlight_colour", colour);
+
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        if (mode == EditMode::Vertex) {
+            render_selected_vertices(selected->geo.get(), comp_sel.vertices);
+        }
+        else if (mode == EditMode::Edge) {
+            render_selected_edges(selected->geo.get(), comp_sel.edges);
+        }
+        else if (mode == EditMode::Face) {
+            render_selected_faces(selected->geo.get(), comp_sel.faces);
+        }
+
+        glEnable(GL_DEPTH_TEST);
+        component_shader_program->release();
+    }
+
+    void PanelViewport::render_selected_vertices( const Geo* geo, const std::unordered_set<uint32_t>& selected_verts )
+    {
+        if (selected_verts.empty()) return;
+
+        std::vector<float> points;
+        for (uint32_t idx : selected_verts) {
+            if (idx < geo->verts.size()) {
+                const Vec3& pos = geo->verts[idx].position;
+                points.push_back(pos.x); points.push_back(pos.y); points.push_back(pos.z);
+            }
+        }
+
+        component_vao.bind();
+        component_vbo.bind();
+        component_vbo.allocate(points.data(), points.size() * sizeof(float));
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+
+        glPointSize(10.0f);
+        //TODO: figure a better size when we have complex meshes imported
+        glDrawArrays(GL_POINTS, 0, points.size() / 3);
+
+        component_vao.release();
+    }
+
+    void PanelViewport::render_selected_edges( const Geo* geo, const std::unordered_set<uint32_t>& selected_edges )
+    {
+        if (selected_edges.empty()) return;
+
+        std::vector<float> lines;
+        uint32_t vertex_count = geo->vertex_count();
+
+        for (uint32_t hash : selected_edges) {
+            uint32_t v1 = hash / vertex_count;
+            uint32_t v2 = hash % vertex_count;
+
+            if (v1 < geo->verts.size() && v2 < geo->verts.size()) {
+                const Vec3& p1 = geo->verts[v1].position;
+                const Vec3& p2 = geo->verts[v2].position;
+
+                lines.push_back(p1.x); lines.push_back(p1.y); lines.push_back(p1.z);
+                lines.push_back(p2.x); lines.push_back(p2.y); lines.push_back(p2.z);
+            }
+        }
+
+        component_vao.bind();
+        component_vbo.bind();
+        component_vbo.allocate(lines.data(), lines.size() * sizeof(float));
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+
+        glLineWidth(3.0f);
+        glDrawArrays(GL_LINES, 0, lines.size() / 3);
+
+        component_vao.release();
+    }
+
+    void PanelViewport::render_selected_faces( const Geo* geo, const std::unordered_set<uint32_t>& selected_faces )
+    {
+        if (selected_faces.empty()) return;
+
+        std::vector<float> tris;
+
+        for (uint32_t face_idx : selected_faces) {
+            uint32_t base = face_idx * 3;
+            if (base + 2 < geo->indices.size()) {
+                for (int i = 0; i < 3; ++i) {
+                    uint32_t v_idx = geo->indices[base + i];
+                    if (v_idx < geo->verts.size()) {
+                        const Vec3& pos = geo->verts[v_idx].position;
+                        tris.push_back(pos.x);
+                        tris.push_back(pos.y);
+                        tris.push_back(pos.z);
+                    }
+                }
+            }
+        }
+
+        component_vao.bind();
+        component_vbo.bind();
+        component_vbo.allocate(tris.data(), tris.size() * sizeof(float));
+
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+
+        //TODO: add transparency param?
+        component_shader_program->setUniformValue("highlight_colour", QVector3D(0.0f, 0.8f, 1.0f));
+        glDrawArrays(GL_TRIANGLES, 0, tris.size() / 3);
+
+        component_vao.release();
     }
 
     void PanelViewport::resizeGL(int w, int h) {
@@ -492,12 +683,14 @@ namespace ollygon {
 
         vao.release();
         shader_program->release();
+
+        render_component_selection();
     }
 
     void PanelViewport::render_node(SceneNode* node, bool render_transparent) {
         if (!node || !node->visible) return;
 
-        bool is_selected = selection_handler && (selection_handler->get_selected() == node);
+        bool is_selected = selection_handler && (selection_handler->get_selected_node() == node);
 
         bool has_renderable_object = (node->primitive && (node->node_type == NodeType::Primitive || node->node_type == NodeType::Light)) ||
             (node->geo && node->node_type == NodeType::Mesh);
@@ -578,7 +771,7 @@ namespace ollygon {
 
         // left mouse = selection
         if (event->button() == Qt::LeftButton) {
-            if (event->modifiers() == Qt::NoModifier && selection_handler) {
+            if (selection_handler && edit_mode_manager) {
                 // convert screen to normalised device coords
                 float x_ndc = (2.0f * event->pos().x()) / width() - 1.0f;
                 float y_ndc = 1.0f - (2.0f * event->pos().y()) / height();
@@ -594,24 +787,13 @@ namespace ollygon {
                 float viewport_half_width = viewport_half_height * aspect_ratio;
 
                 Vec3 ray_dir = forward + right * (x_ndc * viewport_half_width)
-                                       + up * (y_ndc * viewport_half_height);
+                    + up * (y_ndc * viewport_half_height);
                 ray_dir = ray_dir.normalised();
 
-                //don't just select - utilise mode system
-                if (edit_mode_manager) {
-                    if (edit_mode_manager->is_object_mode()) {
-                        selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
-                    }
-                    else {
-                        //component edit mode - raycast against select object's geo
-                        //TODO: implement vert/edge/face selection here
-                        selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
-                    }
-                }
-                else { // no edit_mode_manager
-                    //fallback to object selection.  or maybe should fail more loudly?
-                    selection_handler->raycast_select(scene, camera.get_pos(), ray_dir);
-                }
+                // shift = add to selection
+                bool add_to_selection = (event->modifiers() & Qt::ShiftModifier);
+
+                selection_handler->raycast_select_moded( scene, camera.get_pos(), ray_dir, edit_mode_manager->get_mode(), add_to_selection );
             }
         }
 

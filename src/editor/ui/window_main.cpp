@@ -349,6 +349,9 @@ void MainWindow::create_dock_widgets() {
             viewport->update();
         });
 
+    // connect selection changes to viewport updates
+    connect(&selection_handler, &SelectionHandler::component_selection_changed,
+        viewport, [this]() { viewport->update(); });
     // connect node creation/deletion
     connect(scene_hierarchy, &PanelSceneHierarchy::node_created, this, [this](SceneNode* node) {
         selection_handler.set_selected(node);
@@ -429,7 +432,7 @@ void MainWindow::setup_shortcuts() {
 }
 
 void MainWindow::on_delete_pressed() {
-    SceneNode* selected = selection_handler.get_selected();
+    SceneNode* selected = selection_handler.get_selected_node();
     if (!selected || selected == scene.get_root()) return;
 
     if (SceneOperations::delete_node(&scene, selected)) {

@@ -55,7 +55,6 @@ private:
     Scene* scene;
     Camera camera;
     SelectionHandler* selection_handler;
-    EditModeManager* edit_mode_manager;
 
     QOpenGLShaderProgram* shader_program;
     QOpenGLVertexArrayObject vao;
@@ -77,6 +76,19 @@ private:
     QPoint last_mouse_pos;
     // UI overlay
     ToolbarEditMode* toolbar;
+
+    // == edit modes ==
+
+    EditModeManager* edit_mode_manager;
+
+    QOpenGLShaderProgram* component_shader_program;
+    QOpenGLVertexArrayObject component_vao;
+    QOpenGLBuffer component_vbo;
+
+    void render_component_selection();
+    void render_selected_vertices(const Geo* geo, const std::unordered_set<uint32_t>& verts);
+    void render_selected_edges(const Geo* geo, const std::unordered_set<uint32_t>& edges);
+    void render_selected_faces(const Geo* geo, const std::unordered_set<uint32_t>& faces);
 
 signals:
     void camera_moved();
