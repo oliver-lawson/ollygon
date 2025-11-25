@@ -1,10 +1,12 @@
 #include "toolbar_edit_mode.hpp"
+#include "core/selection_handler.hpp"
 
 namespace ollygon {
 
-ToolbarEditMode::ToolbarEditMode(EditModeManager* manager, QWidget* parent)
+ToolbarEditMode::ToolbarEditMode(EditModeManager* manager, SelectionHandler* selection_handler, QWidget* parent)
     : QToolBar("Edit Mode", parent)
     , mode_manager(manager)
+    , selection_handler(selection_handler)
 {
     setMovable(false);
     setFloatable(false);
@@ -14,7 +16,12 @@ ToolbarEditMode::ToolbarEditMode(EditModeManager* manager, QWidget* parent)
     // listen to mode changes from elsewhere (keyboard shortcuts etc)
     connect(mode_manager, &EditModeManager::mode_changed,
             this, &ToolbarEditMode::on_mode_changed);
-    
+    // listen to selection changes to update availability
+    if (selection_handler) {
+        connect(selection_handler, &SelectionHandler::selection_changed,
+            this, &ToolbarEditMode::on_selection_changed);
+    }
+
     // set initial states
     update_button_states();
 }
@@ -69,20 +76,85 @@ void ToolbarEditMode::setup_ui() {
             this, &ToolbarEditMode::on_button_clicked);
 }
 
-void ToolbarEditMode::on_button_clicked(int id) {
-    mode_manager->set_mode((EditMode)id);
-}
-
 void ToolbarEditMode::on_mode_changed(EditMode mode) {
     update_button_states();
 }
 
-void ToolbarEditMode::update_button_states() {
-    // update which button is checked
-    QAbstractButton* btn = button_group->button((int)mode_manager->get_mode());
-    if (btn) {
-        btn->setChecked(true);
-    }
+void ToolbarEditMode::on_selection_changed(SceneNode* node) {
+    update_button_states();
+}
+
+void ToolbarEditMode::on_button_clicked(int id) {
+    EditMode mode = (EditMode)id;
+    SceneNode* selected = selection_handler ? selection_handler->get_selected_node() : nullptr;
+
+    // try to set the mode - it will only succeed if available
+    mode_manager->try_set_mode(mode, selected);
+}
+
+void ToolbarEditMode::update_button_states()
+{
+    SceneNode* selected = selection_handler ? selection_handler->get_selected_node() : nullptr;
+    EditMode current_mode = mode_manager->get_mode();
+
+    // update each button's enabled state and checked state
+    auto update_button = [&](QPushButton* btn, EditMode mode) {
+        bool available = mode_manager->is_mode_available(mode, selected);
+        btn->setEnabled(available);
+        btn->setChecked(current_mode == mode);
+
+        // update tooltip to explain why disabled
+        if (!available && mode != EditMode::Object) {
+            QString base_tooltip;
+            switch (mode) {
+            case EditMode::Vertex:
+                base_tooltip = "Vertex mode (1)";
+                break;
+            case EditMode::Edge:
+                base_tooltip = "Edge mode (2)";
+                break;
+            case EditMode::Face:
+                base_tooltip = "Face mode (3)";
+                break;
+            case EditMode::Sculpt:
+                base_tooltip = "Sculpt mode (5)";
+                break;
+            default:
+                base_tooltip = btn->toolTip();
+                break;
+            }
+
+            QString tooltip = base_tooltip;
+            switch (mode) {
+            case EditMode::Vertex:
+            case EditMode::Edge:
+            case EditMode::Face:
+                if (!selected) {
+                    tooltip += " - select a mesh first";
+                }
+                else if (selected->node_type != NodeType::Mesh) {
+                    tooltip += " - mesh objects only";
+                }
+                else {
+                    tooltip += " - no geometry";
+                }
+                break;
+            case EditMode::Sculpt:
+                tooltip += " - not implemented yet";
+                break;
+            default:
+                break;
+            }
+
+            btn->setToolTip(tooltip);
+        }
+        };
+
+    update_button(btn_vertex, EditMode::Vertex);
+    update_button(btn_edge, EditMode::Edge);
+    update_button(btn_face, EditMode::Face);
+    update_button(btn_object, EditMode::Object);
+    update_button(btn_sculpt, EditMode::Sculpt);
 }
 
 } // namespace ollygon

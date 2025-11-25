@@ -8,15 +8,19 @@
 
 namespace ollygon {
 
+//forward decs
+class SelectionHandler;
+
 // horizontal toolbar with mode buttons
 class ToolbarEditMode : public QToolBar {
     Q_OBJECT
 
 public:
-    explicit ToolbarEditMode(EditModeManager* mode_manager, QWidget* parent = nullptr);
+    explicit ToolbarEditMode(EditModeManager* mode_manager, SelectionHandler* selection_handler, QWidget* parent = nullptr);
 
 private slots:
     void on_mode_changed(EditMode mode);
+    void on_selection_changed(SceneNode* node);
     void on_button_clicked(int id);
 
 private:
@@ -24,6 +28,7 @@ private:
     void update_button_states();
 
     EditModeManager* mode_manager;
+    SelectionHandler* selection_handler;
     QButtonGroup* button_group;
 
     QPushButton* btn_vertex;

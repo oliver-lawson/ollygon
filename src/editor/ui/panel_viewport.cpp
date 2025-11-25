@@ -58,7 +58,7 @@ namespace ollygon {
 
         // create toolbar if we don't have one yet
         if (!toolbar && manager) {
-            toolbar = new ToolbarEditMode(manager, this);
+            toolbar = new ToolbarEditMode(manager, selection_handler, this);
             toolbar->setStyleSheet(
                 "QToolBar { border: none; background: transparent; }"
                 "QPushButton { "
