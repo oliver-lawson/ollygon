@@ -92,39 +92,20 @@ void ToolbarEditMode::on_button_clicked(int id) {
     mode_manager->try_set_mode(mode, selected);
 }
 
-void ToolbarEditMode::update_button_states()
-{
+void ToolbarEditMode::update_button_states() {
     SceneNode* selected = selection_handler ? selection_handler->get_selected_node() : nullptr;
     EditMode current_mode = mode_manager->get_mode();
 
     // update each button's enabled state and checked state
-    auto update_button = [&](QPushButton* btn, EditMode mode) {
+    auto update_button = [&](QPushButton* btn, EditMode mode, const QString& base_tooltip) {
         bool available = mode_manager->is_mode_available(mode, selected);
         btn->setEnabled(available);
         btn->setChecked(current_mode == mode);
 
-        // update tooltip to explain why disabled
-        if (!available && mode != EditMode::Object) {
-            QString base_tooltip;
-            switch (mode) {
-            case EditMode::Vertex:
-                base_tooltip = "Vertex mode (1)";
-                break;
-            case EditMode::Edge:
-                base_tooltip = "Edge mode (2)";
-                break;
-            case EditMode::Face:
-                base_tooltip = "Face mode (3)";
-                break;
-            case EditMode::Sculpt:
-                base_tooltip = "Sculpt mode (5)";
-                break;
-            default:
-                base_tooltip = btn->toolTip();
-                break;
-            }
+        // always set tooltip - either base or base + reason
+        QString tooltip = base_tooltip;
 
-            QString tooltip = base_tooltip;
+        if (!available && mode != EditMode::Object) {
             switch (mode) {
             case EditMode::Vertex:
             case EditMode::Edge:
@@ -145,16 +126,16 @@ void ToolbarEditMode::update_button_states()
             default:
                 break;
             }
-
-            btn->setToolTip(tooltip);
         }
+
+        btn->setToolTip(tooltip);
         };
 
-    update_button(btn_vertex, EditMode::Vertex);
-    update_button(btn_edge, EditMode::Edge);
-    update_button(btn_face, EditMode::Face);
-    update_button(btn_object, EditMode::Object);
-    update_button(btn_sculpt, EditMode::Sculpt);
+    update_button(btn_vertex, EditMode::Vertex, "Vertex mode (1)");
+    update_button(btn_edge, EditMode::Edge, "Edge mode (2)");
+    update_button(btn_face, EditMode::Face, "Face mode (3)");
+    update_button(btn_object, EditMode::Object, "Object mode (4)");
+    update_button(btn_sculpt, EditMode::Sculpt, "Sculpt mode (5)");
 }
 
 } // namespace ollygon
