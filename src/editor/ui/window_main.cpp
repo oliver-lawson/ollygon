@@ -352,6 +352,14 @@ void MainWindow::create_dock_widgets() {
     // connect selection changes to viewport updates
     connect(&selection_handler, &SelectionHandler::component_selection_changed,
         viewport, [this]() { viewport->update(); });
+    connect(&selection_handler, &SelectionHandler::selection_changed,
+        this, [this](SceneNode* node) {
+            if (!edit_mode_manager.is_mode_available(
+                edit_mode_manager.get_mode(), node)) {
+                // fall back to object mode
+                edit_mode_manager.set_mode(EditMode::Object);
+            }
+        });
     // connect node creation/deletion
     connect(scene_hierarchy, &PanelSceneHierarchy::node_created, this, [this](SceneNode* node) {
         selection_handler.set_selected(node);
@@ -411,23 +419,28 @@ void MainWindow::setup_shortcuts() {
     // mode shortcuts
     QShortcut* mode_1 = new QShortcut(QKeySequence(Qt::Key_1), this);
     connect(mode_1, &QShortcut::activated, [this]() {
-        edit_mode_manager.set_mode(EditMode::Vertex);
+        SceneNode* selected = selection_handler.get_selected_node();
+        edit_mode_manager.try_set_mode(EditMode::Vertex, selected);
         });
     QShortcut* mode_2 = new QShortcut(QKeySequence(Qt::Key_2), this);
     connect(mode_2, &QShortcut::activated, [this]() {
-        edit_mode_manager.set_mode(EditMode::Edge);
+        SceneNode* selected = selection_handler.get_selected_node();
+        edit_mode_manager.try_set_mode(EditMode::Edge, selected);
         });
     QShortcut* mode_3 = new QShortcut(QKeySequence(Qt::Key_3), this);
     connect(mode_3, &QShortcut::activated, [this]() {
-        edit_mode_manager.set_mode(EditMode::Face);
+        SceneNode* selected = selection_handler.get_selected_node();
+        edit_mode_manager.try_set_mode(EditMode::Face, selected);
         });
     QShortcut* mode_4 = new QShortcut(QKeySequence(Qt::Key_4), this);
     connect(mode_4, &QShortcut::activated, [this]() {
-        edit_mode_manager.set_mode(EditMode::Object);
+        SceneNode* selected = selection_handler.get_selected_node();
+        edit_mode_manager.try_set_mode(EditMode::Object, selected);
         });
     QShortcut* mode_5 = new QShortcut(QKeySequence(Qt::Key_5), this);
     connect(mode_5, &QShortcut::activated, [this]() {
-        edit_mode_manager.set_mode(EditMode::Sculpt);
+        SceneNode* selected = selection_handler.get_selected_node();
+        edit_mode_manager.try_set_mode(EditMode::Sculpt, selected);
         });
 }
 
