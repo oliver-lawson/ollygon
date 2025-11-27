@@ -1,6 +1,8 @@
 #pragma once
 
 #include "vec3.hpp"
+#include "vec4.hpp"
+
 #include <cmath>
 #include "constants.hpp"
 #include <QMatrix4x4> // for converting out. unfortunately makes this not Qt-independent
@@ -21,7 +23,7 @@ struct Mat4 {
 
     // functions
     void identity() {
-        for (int i=0;i<16;i++) m[i] = 0.0f;
+        for (int i = 0; i < 16; i++) m[i] = 0.0f;
         m[0] = m[5] = m[10] = m[15] = 1.0f;
     }
 
@@ -100,7 +102,7 @@ struct Mat4 {
     static Mat4 rotate_euler(float x_rad, float y_rad, float z_rad) {
         return rotate_z(z_rad) * rotate_y(y_rad) * rotate_x(x_rad);
     }
-    
+
     // matrix inverse, affine transform only. specialised inversion - assumes a TRS
     Mat4 inverse() const {
         Mat4 inv;
@@ -144,7 +146,7 @@ struct Mat4 {
 
         return inv;
     }
-    
+
     Mat4 inverse_general_row_major() const
     {
         // standard cofactor expansion method for 4x4 matrix inversion
@@ -306,18 +308,18 @@ struct Mat4 {
 
         return result;
     }
-    
+
     static Mat4 perspective(float fov_y_rad, float aspect, float near, float far) {
         Mat4 mat;
         for (int i = 0; i < 16; ++i) mat.m[i] = 0.0f;
-        
+
         float tan_half_fov = std::tan(fov_y_rad / 2.0f);
         mat.m[0] = 1.0f / (aspect * tan_half_fov);
         mat.m[5] = 1.0f / tan_half_fov;
         mat.m[10] = -(far + near) / (far - near);
         mat.m[11] = -1.0f;
         mat.m[14] = -(2.0f * far * near) / (far - near);
-        
+
         return mat;
     }
 
@@ -342,7 +344,7 @@ struct Mat4 {
 
         return mat;
     }
-    
+
     Mat4 operator*(const Mat4& other) const {
         Mat4 result;
         for (int col = 0; col < 4; ++col) {
@@ -397,6 +399,17 @@ struct Mat4 {
     }
 
     const float* floats() const { return m; }
-};
 
+    // == vec4 ops ==
+
+    Vec4 operator*(const Vec4& v) const {
+        return Vec4(
+            m[0] * v.x + m[4] * v.y + m[8] * v.z + m[12] * v.w,
+            m[1] * v.x + m[5] * v.y + m[9] * v.z + m[13] * v.w,
+            m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14] * v.w,
+            m[3] * v.x + m[7] * v.y + m[11] * v.z + m[15] * v.w
+        );
+    }
+
+};
 } // namespace ollygon
