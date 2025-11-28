@@ -28,6 +28,11 @@ void SelectionHandler::clear_component_selection() {
     emit component_selection_changed();
 }
 
+void SelectionHandler::set_component_selection(const ComponentSelection& new_selection) {
+    component_selection = new_selection;
+    emit component_selection_changed();
+}
+
 bool SelectionHandler::raycast_select_moded( Scene* scene, const Vec3& ray_origin, const Vec3& ray_dir, EditMode mode, bool add_to_selection ) {
     if (mode == EditMode::Object) {
         // object mode - standard raycast

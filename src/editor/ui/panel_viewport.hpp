@@ -12,6 +12,7 @@
 #include "core/selection_handler.hpp"
 #include "core/edit_mode.hpp"
 #include "toolbar_edit_mode.hpp"
+#include "toolbar_selection_mode.hpp"
 
 namespace ollygon {
 
@@ -50,11 +51,13 @@ private:
     void rebuild_scene_geometry();
     void render_sky_background();
     void render_node(SceneNode* node, bool render_transparent);
-    void position_toolbar();
+    void render_box_select_overlay();
+    void position_toolbars();
 
     Scene* scene;
     Camera camera;
     SelectionHandler* selection_handler;
+    SelectionSystem* selection_system;
 
     QOpenGLShaderProgram* shader_program;
     QOpenGLVertexArrayObject vao;
@@ -75,7 +78,8 @@ private:
     bool is_camera_dragging;
     QPoint last_mouse_pos;
     // UI overlay
-    ToolbarEditMode* toolbar;
+    ToolbarEditMode* toolbar_edit_mode;
+    ToolbarSelectionMode* toolbar_selection_mode;
 
     // == edit modes ==
 

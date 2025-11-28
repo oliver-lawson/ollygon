@@ -36,6 +36,7 @@ public:
     const ComponentSelection& get_component_selection() const {
         return component_selection;
     }
+    void set_component_selection(const ComponentSelection& new_selection);
 
     bool has_component_selection() const {
         return !component_selection.is_empty();

@@ -2,9 +2,11 @@
 #include <QOpenGLShader>
 #include <QWheelEvent>
 #include <QResizeEvent>
+#include <QPainter>
 #include <cmath>
 #include <iostream>
 #include "panel_scene_hierarchy.hpp"
+#include "core/selection_system.hpp"
 
 namespace ollygon {
 
@@ -15,9 +17,12 @@ namespace ollygon {
         , vbo(QOpenGLBuffer::VertexBuffer)
         , ebo(QOpenGLBuffer::IndexBuffer)
         , selection_handler(nullptr)
+        , selection_system(nullptr)
+        , edit_mode_manager(nullptr)
         , geometry_dirty(true)
         , is_camera_dragging(false)
-        , toolbar(nullptr)
+        , toolbar_edit_mode(nullptr)
+        , toolbar_selection_mode(nullptr)
     {
         setMouseTracking(true);
     }
@@ -50,16 +55,27 @@ namespace ollygon {
         if (handler) {
             connect(handler, &SelectionHandler::selection_changed,
                 this, [this]() { update(); });
+            connect(handler, &SelectionHandler::component_selection_changed,
+                this, [this]() { update(); });
         }
     }
 
     void PanelViewport::set_edit_mode_manager(EditModeManager* manager) {
         edit_mode_manager = manager;
 
+        if (edit_mode_manager && selection_handler && !selection_system) {
+            selection_system = new SelectionSystem(this);
+            selection_system->set_selection_handler(selection_handler);
+            selection_system->set_edit_mode_manager(edit_mode_manager);
+
+            connect(selection_system, &SelectionSystem::box_select_state_changed,
+                this, [this]() { update(); });
+        }
+
         // create toolbar if we don't have one yet
-        if (!toolbar && manager) {
-            toolbar = new ToolbarEditMode(manager, selection_handler, this);
-            toolbar->setStyleSheet(
+        if (!toolbar_edit_mode && manager) {
+            toolbar_edit_mode = new ToolbarEditMode(manager, selection_handler, this);
+            toolbar_edit_mode->setStyleSheet(
                 "QToolBar { border: none; background: transparent; }"
                 "QPushButton { "
                 "  padding: 6px 12px; "
@@ -82,14 +98,14 @@ namespace ollygon {
                 "  color: #666; "
                 "}"
             );
-            position_toolbar();
         }
 
-        // connect to mode changes for viewport updates
-        if (manager) {
-            connect(manager, &EditModeManager::mode_changed,
-                this, [this]() { update(); });
+        if (!toolbar_selection_mode && selection_system) {
+            toolbar_selection_mode = new ToolbarSelectionMode(selection_system, this);
+            toolbar_selection_mode->setStyleSheet(toolbar_edit_mode->styleSheet());
         }
+
+        position_toolbars();
     }
 
     void PanelViewport::initializeGL() {
@@ -684,7 +700,9 @@ namespace ollygon {
         vao.release();
         shader_program->release();
 
+        // render extras on top
         render_component_selection();
+        render_box_select_overlay();
     }
 
     void PanelViewport::render_node(SceneNode* node, bool render_transparent) {
@@ -754,14 +772,46 @@ namespace ollygon {
         }
     }
 
-    void PanelViewport::position_toolbar() {
-        if (!toolbar) return;
+    void PanelViewport::render_box_select_overlay() {
+        if (!selection_system || !selection_system->is_box_selecting()) return;
 
-        // top-left with some padding for now
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+
+        QPainter painter(this);
+        painter.beginNativePainting();
+        painter.endNativePainting();//reset GL state for QPainter
+
+        painter.setRenderHint(QPainter::Antialiasing);
+
+        QRect box = selection_system->get_box_select_rect();
+
+        // transparent fill
+        painter.fillRect(box, QColor(255, 140, 0, 30));
+        // border
+        painter.setPen(QPen(QColor(255, 140, 0), 2));
+        painter.drawRect(box);
+
+        painter.end();
+
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_CULL_FACE);
+    }
+
+    void PanelViewport::position_toolbars() {
+        if (!toolbar_edit_mode || !toolbar_selection_mode) return;
+
         int padding = 8;
-        toolbar->move(padding, padding);
-        toolbar->adjustSize();
-        toolbar->raise();// on top!
+        int y_pos = padding;
+
+        // edit mode toolbar at top
+        toolbar_edit_mode->move(padding, y_pos);
+        toolbar_edit_mode->raise();
+
+        // selection mode toolbar below it
+        y_pos += toolbar_edit_mode->height() + 4;
+        toolbar_selection_mode->move(padding, y_pos);
+        toolbar_selection_mode->raise();
     }
 
     void PanelViewport::mousePressEvent(QMouseEvent* event) {
@@ -770,31 +820,12 @@ namespace ollygon {
         last_mouse_pos = event->pos();
 
         // left mouse = selection
-        if (event->button() == Qt::LeftButton) {
-            if (selection_handler && edit_mode_manager) {
-                // convert screen to normalised device coords
-                float x_ndc = (2.0f * event->pos().x()) / width() - 1.0f;
-                float y_ndc = 1.0f - (2.0f * event->pos().y()) / height();
-
-                // compute ray direction
-                Vec3 forward = (camera.get_target() - camera.get_pos()).normalised();
-                Vec3 right = Vec3::cross(forward, camera.get_up()).normalised();
-                Vec3 up = Vec3::cross(right, forward);
-
-                float aspect_ratio = float(width()) / float(height());
-                float fov_rad = camera.get_fov_degs() * DEG_TO_RAD;
-                float viewport_half_height = std::tan(fov_rad * 0.5f);
-                float viewport_half_width = viewport_half_height * aspect_ratio;
-
-                Vec3 ray_dir = forward + right * (x_ndc * viewport_half_width)
-                    + up * (y_ndc * viewport_half_height);
-                ray_dir = ray_dir.normalised();
-
-                // shift = add to selection
-                bool add_to_selection = (event->modifiers() & Qt::ShiftModifier);
-
-                selection_handler->raycast_select_moded( scene, camera.get_pos(), ray_dir, edit_mode_manager->get_mode(), add_to_selection );
-            }
+        if (event->button() == Qt::LeftButton && selection_system)
+        {
+            selection_system->handle_mouse_press(
+                scene, camera, event->pos(), width(), height(), event->modifiers()
+            );
+            return;
         }
 
         // right/middle mouse = camera
@@ -804,7 +835,13 @@ namespace ollygon {
         }
     }
 
-    void PanelViewport::mouseMoveEvent(QMouseEvent* event) {
+    void PanelViewport::mouseMoveEvent(QMouseEvent* event)
+    {
+        if (selection_system && selection_system->is_box_selecting()) {
+            selection_system->handle_mouse_move(event->pos());
+            return;
+        }
+
         if (!is_camera_dragging) return;
 
         QPoint delta = event->pos() - last_mouse_pos;
@@ -831,6 +868,13 @@ namespace ollygon {
     }
 
     void PanelViewport::mouseReleaseEvent(QMouseEvent* event) {
+        if (event->button() == Qt::LeftButton && selection_system) {
+            selection_system->handle_mouse_release(
+                scene, camera, event->pos(), width(), height()
+            );
+            return;
+        }
+
         if (event->button() == Qt::RightButton || event->button() == Qt::MiddleButton) {
             is_camera_dragging = false;
             setCursor(Qt::ArrowCursor);
@@ -848,7 +892,7 @@ namespace ollygon {
 
     void PanelViewport::resizeEvent(QResizeEvent* event) {
         QOpenGLWidget::resizeEvent(event);
-        position_toolbar();
+        position_toolbars();
     }
 
 } // namespace ollygon
