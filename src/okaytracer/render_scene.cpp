@@ -186,21 +186,11 @@ void RenderScene::add_cuboid_as_triangles(const SceneNode* node, const CuboidPri
 
 // == create mesh ==
 
-void RenderScene::add_mesh_primitives( const SceneNode* node, const Geo* geo, std::vector<RenderPrimitive>& prims )
+void RenderScene::add_mesh_primitives(const SceneNode* node, const Geo* geo, std::vector<RenderPrimitive>& prims)
 {
     if (geo->indices.empty() || geo->verts.empty()) return;
 
-    Mat4 translate = Mat4::translate(
-        node->transform.position.x,
-        node->transform.position.y,
-        node->transform.position.z
-    );
-    Mat4 scale = Mat4::scale(
-        node->transform.scale.x,
-        node->transform.scale.y,
-        node->transform.scale.z
-    );
-    Mat4 model = translate * scale;
+    Mat4 model = node->transform.to_matrix();
 
     // convert each tri to world space
     for (size_t i = 0; i < geo->indices.size(); i += 3) {
