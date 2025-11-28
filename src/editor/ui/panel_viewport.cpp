@@ -708,7 +708,7 @@ namespace ollygon {
     void PanelViewport::render_node(SceneNode* node, bool render_transparent) {
         if (!node || !node->visible) return;
 
-        bool is_selected = selection_handler && (selection_handler->get_selected_node() == node);
+        bool is_selected = selection_handler && selection_handler->is_selected(node);
 
         bool has_renderable_object = (node->primitive && (node->node_type == NodeType::Primitive || node->node_type == NodeType::Light)) ||
             (node->geo && node->node_type == NodeType::Mesh);
@@ -838,7 +838,8 @@ namespace ollygon {
     void PanelViewport::mouseMoveEvent(QMouseEvent* event)
     {
         if (selection_system && selection_system->is_box_selecting()) {
-            selection_system->handle_mouse_move(event->pos());
+            selection_system->handle_mouse_move(scene, camera, event->pos(), width(), height());
+            update();
             return;
         }
 

@@ -7,20 +7,65 @@ namespace ollygon {
 
 SelectionHandler::SelectionHandler(QObject* parent)
     : QObject(parent)
-    , selected_node(nullptr)
 {}
 
-void SelectionHandler::set_selected(SceneNode* node) {
-    if (selected_node == node) return;
+bool SelectionHandler::is_selected(SceneNode* node) const {
+    return std::find(selected_nodes.begin(), selected_nodes.end(), node) != selected_nodes.end();
+}
 
-    selected_node = node;
+void SelectionHandler::set_selected(SceneNode* node) {
+    selected_nodes.clear();
+    if (node) {
+        selected_nodes.push_back(node);
+    }
     component_selection.clear();
     emit selection_changed(node);
     emit component_selection_changed();
 }
 
+void SelectionHandler::add_to_selection(SceneNode* node) {
+    if (!node || is_selected(node)) return;
+
+    selected_nodes.push_back(node);
+    component_selection.clear();
+    emit selection_changed(node);
+}
+
+void SelectionHandler::remove_from_selection(SceneNode* node) {
+    auto it = std::find(selected_nodes.begin(), selected_nodes.end(), node);
+    if (it != selected_nodes.end()) {
+        selected_nodes.erase(it);
+        component_selection.clear();
+        emit selection_changed(selected_nodes.empty() ? nullptr : selected_nodes.back());
+    }
+}
+
+void SelectionHandler::toggle_selection(SceneNode* node) {
+    if (!node) return;
+
+    if (is_selected(node)) {
+        remove_from_selection(node);
+    }
+    else {
+        add_to_selection(node);
+    }
+}
+
+void SelectionHandler::set_selection(const std::vector<SceneNode*>& nodes) {
+    selected_nodes.clear();
+    for (SceneNode* node : nodes) {
+        if (node) selected_nodes.push_back(node);
+    }
+    component_selection.clear();
+    emit selection_changed(selected_nodes.empty() ? nullptr : selected_nodes.back());
+    emit component_selection_changed();
+}
+
 void SelectionHandler::clear_selection() {
-    set_selected(nullptr);
+    selected_nodes.clear();
+    component_selection.clear();
+    emit selection_changed(nullptr);
+    emit component_selection_changed();
 }
 
 void SelectionHandler::clear_component_selection() {
@@ -33,26 +78,34 @@ void SelectionHandler::set_component_selection(const ComponentSelection& new_sel
     emit component_selection_changed();
 }
 
-bool SelectionHandler::raycast_select_moded( Scene* scene, const Vec3& ray_origin, const Vec3& ray_dir, EditMode mode, bool add_to_selection ) {
+bool SelectionHandler::raycast_select_moded(Scene* scene, const Vec3& ray_origin, const Vec3& ray_dir, EditMode mode, bool add_to_selection) {
     if (mode == EditMode::Object) {
-        // object mode - standard raycast
         float closest_t = std::numeric_limits<float>::max(); //TODO constants this
         SceneNode* hit_node = nullptr;
 
         raycast_anything_get_scenenode(scene->get_root(), ray_origin, ray_dir, closest_t, hit_node);
 
         if (hit_node) {
-            set_selected(hit_node);
+            if (add_to_selection) {
+                toggle_selection(hit_node);
+            }
+            else {
+                set_selected(hit_node);
+            }
             return true;
+        }
+        else if (!add_to_selection) {
+            clear_selection();
         }
         return false;
     }
-    // component modes - need an object selected first
+
+    // component modes - need single object selected
+    SceneNode* selected_node = get_selected_node();
     if (!selected_node) {
-        // no object selected, try selecting one
         return raycast_select_moded(scene, ray_origin, ray_dir, EditMode::Object, false);
     }
-    // only meshes support component selection
+
     if (selected_node->node_type != NodeType::Mesh || !selected_node->geo) {
         return false;
     }
@@ -67,7 +120,6 @@ bool SelectionHandler::raycast_select_moded( Scene* scene, const Vec3& ray_origi
         float dist;
         if (raycast_vertex(selected_node, ray_origin, ray_dir, vertex_index, dist)) {
             if (add_to_selection) {
-                // toggle selection
                 if (component_selection.vertices.count(vertex_index)) {
                     component_selection.vertices.erase(vertex_index);
                 }
@@ -118,9 +170,9 @@ bool SelectionHandler::raycast_select_moded( Scene* scene, const Vec3& ray_origi
     return component_hit;
 }
 
-bool SelectionHandler::raycast_anything_get_scenenode( SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, float& closest_t, SceneNode*& hit_node )
+bool SelectionHandler::raycast_anything_get_scenenode(SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, float& closest_t, SceneNode*& hit_node)
 {
-    bool hit_anything = false; //prims OR mesh (or more in future..)
+    bool hit_anything = false; //prims, mesh, objects!
 
     if (node->locked || !node->visible) return false;
 
@@ -138,14 +190,12 @@ bool SelectionHandler::raycast_anything_get_scenenode( SceneNode* node, const Ve
     Mat4 model = translate * scale;
     Mat4 inv_model = model.inverse();
 
-    // transform ray to local space
     Vec3 local_origin = inv_model.transform_point(ray_origin);
     Vec3 local_dir = inv_model.transform_direction(ray_dir).normalised();
 
     float t;
     Vec3 normal;
 
-    // test primitive if present
     if (node->primitive && node->node_type == NodeType::Primitive) {
         if (node->primitive->intersect_ray(local_origin, local_dir, t, normal)) {
             if (t < closest_t) {
@@ -155,7 +205,6 @@ bool SelectionHandler::raycast_anything_get_scenenode( SceneNode* node, const Ve
             }
         }
     }
-    // test mesh if present
     else if (node->geo && node->node_type == NodeType::Mesh) {
         uint32_t tri_index;
         if (node->geo->intersect_ray(local_origin, local_dir, t, normal, tri_index)) {
@@ -166,7 +215,6 @@ bool SelectionHandler::raycast_anything_get_scenenode( SceneNode* node, const Ve
             }
         }
     }
-
     // test children recursively
     for (auto& child : node->children) {
         if (raycast_anything_get_scenenode(child.get(), ray_origin, ray_dir, closest_t, hit_node)) {
@@ -177,8 +225,7 @@ bool SelectionHandler::raycast_anything_get_scenenode( SceneNode* node, const Ve
     return hit_anything;
 }
 
-bool SelectionHandler::raycast_vertex( SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& vertex_index, float& closest_dist )
-{
+bool SelectionHandler::raycast_vertex(SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& vertex_index, float& closest_dist) {
     if (!node->geo || node->geo->verts.empty()) return false;
 
     // build world transform
@@ -214,8 +261,7 @@ bool SelectionHandler::raycast_vertex( SceneNode* node, const Vec3& ray_origin, 
     return found;
 }
 
-bool SelectionHandler::raycast_edge( SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& v1_index, uint32_t& v2_index, float& closest_dist )
-{
+bool SelectionHandler::raycast_edge(SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& v1_index, uint32_t& v2_index, float& closest_dist) {
     if (!node->geo || node->geo->indices.empty()) return false;
 
     Mat4 model = node->transform.to_matrix();
@@ -284,8 +330,7 @@ bool SelectionHandler::raycast_edge( SceneNode* node, const Vec3& ray_origin, co
     return found;
 }
 
-bool SelectionHandler::raycast_face( SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& face_index, float& closest_t )
-{
+bool SelectionHandler::raycast_face(SceneNode* node, const Vec3& ray_origin, const Vec3& ray_dir, uint32_t& face_index, float& closest_t) {
     if (!node->geo || node->geo->indices.empty()) return false;
 
     // build transform

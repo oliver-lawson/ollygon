@@ -27,7 +27,7 @@ public:
 
     // interaction - called from viewport
     void handle_mouse_press(Scene* scene, const Camera& camera, const QPoint& pos, int viewport_width, int viewport_height, Qt::KeyboardModifiers modifiers);
-    void handle_mouse_move( const QPoint& pos);
+    void handle_mouse_move(Scene* scene, const Camera& camera, const QPoint& pos, int viewport_width, int viewport_height);
     void handle_mouse_release(Scene* scene, const Camera& camera, const QPoint& pos, int viewport_width, int viewport_height);
 
     // box select state (for rendering)
@@ -52,13 +52,21 @@ private:
     QPoint box_end;
 
     void start_box_select(const QPoint& pos);
-    void update_box_select(const QPoint& pos);
-    void finish_box_select( Scene* scene, const Camera& camera, int viewport_width, int viewport_height );
+    void update_box_select(Scene* scene, const Camera& camera, const QPoint& pos, int viewport_width, int viewport_height);
+    void finish_box_select();
+
+    void calculate_box_selection(Scene* scene, const Camera& camera, int viewport_width, int viewport_height);
 
     // helpers
     Vec3 screen_to_ray( const Camera& camera, const QPoint& screen_pos, int viewport_width, int viewport_height ) const;
+    bool world_to_screen(const Camera& camera, const Vec3& world_pos, int viewport_width, int viewport_height, float& screen_x, float& screen_y) const;
+
+    bool line_segment_intersects_box(const Camera& camera, const Vec3& p1, const Vec3& p2, int viewport_width, int viewport_height) const;
 
     bool is_point_in_box( const Camera& camera, const Vec3& world_pos, int viewport_width, int viewport_height ) const;
+
+    void collect_nodes_in_box( SceneNode* node, const Camera& camera, int viewport_width, int viewport_height, std::vector<SceneNode*>& out_nodes );
+
 };
 
 } // namespace ollygon
