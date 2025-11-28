@@ -31,6 +31,7 @@ private:
     void create_menus();
     void setup_shortcuts();
     void on_delete_pressed();
+    void on_import_mesh();
 
     void save_scene();
     void save_scene_as();

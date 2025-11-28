@@ -4,6 +4,7 @@
 #include "core/properties_panel.hpp"
 #include "core/scene_operations.hpp"
 #include "core/serialisation.hpp"
+#include "core/io/import_mesh.hpp"
 #include <QMenuBar>
 #include <QMenu>
 #include <QAction>
@@ -395,6 +396,13 @@ void MainWindow::create_menus() {
 
     file_menu->addSeparator();
 
+    QAction* import_action = new QAction("&Import Mesh...", this);
+    import_action->setShortcut(QKeySequence("Ctrl+I"));
+    connect(import_action, &QAction::triggered, this, &MainWindow::on_import_mesh);
+    file_menu->addAction(import_action);
+
+    file_menu->addSeparator();
+
     QAction* exit_action = new QAction("E&xit", this);
     exit_action->setShortcut(QKeySequence::Quit);
     connect(exit_action, &QAction::triggered, this, &QMainWindow::close);
@@ -454,6 +462,33 @@ void MainWindow::on_delete_pressed() {
         viewport->mark_geometry_dirty();
         viewport->update();
     }
+}
+
+void MainWindow::on_import_mesh() {
+    //TEMP for now, all mesh types lumped together
+    QString filepath = QFileDialog::getOpenFileName(
+        this,
+        "Import Mesh",
+        "",
+        "Mesh Files (*.obj *.ply);;OBJ Files (*.obj);;PLY Files (*.ply);;All Files (*)"
+    );
+
+    if (filepath.isEmpty()) return;
+
+    auto node = SceneOperations::import_mesh_from_file(filepath.toStdString());
+
+    if (!node) {
+        QMessageBox::warning(this, "Import Failed", "Failed to import mesh from file.");
+        return;
+    }
+
+    // add to scene root
+    scene.get_root()->add_child(std::move(node));
+
+    // refresh ui
+    scene_hierarchy->rebuild_tree();
+    viewport->mark_geometry_dirty();
+    viewport->update();
 }
 
 void MainWindow::save_scene() {

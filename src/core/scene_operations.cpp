@@ -1,5 +1,8 @@
 #include "scene_operations.hpp"
+#include "core/io/import_mesh.hpp"
 #include <algorithm>
+#include <filesystem>
+#include <iostream>
 
 namespace ollygon {
 
@@ -108,5 +111,33 @@ std::unique_ptr<SceneNode> SceneOperations::create_area_light(const std::string&
     return node;
 }
 
+std::unique_ptr<SceneNode> SceneOperations::import_mesh_from_file(const std::string& filepath)
+{
+    namespace fs = std::filesystem;
+
+    std::string ext = fs::path(filepath).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    auto geo = std::make_unique<Geo>();
+    MeshImportResult result;
+
+    if (ext == ".obj") { result = MeshImporter::import_obj(filepath, *geo); }
+    else if (ext == ".ply") { result = MeshImporter::import_ply(filepath, *geo); }
+    else {
+        std::cerr << "Failed to import mesh!" << std::endl;
+        return nullptr;
+    }
+
+    //create node
+    fs::path p(filepath);
+    std::string name = p.stem().string();
+
+    auto node = std::make_unique<SceneNode>(name);
+    node->node_type = NodeType::Mesh;
+    node->geo = std::move(geo);
+    node->material = Material::lambertian(Colour(0.75f, 0.75f, 0.75f));
+
+    return node;
+}
 
 } // namespace ollygon

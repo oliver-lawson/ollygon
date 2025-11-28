@@ -23,6 +23,10 @@ public:
 
     static std::unique_ptr<SceneNode> create_point_light(const std::string& name = "Point Light");
     static std::unique_ptr<SceneNode> create_area_light(const std::string& name = "Area Light");
+
+    //io
+    static std::unique_ptr<SceneNode> import_mesh_from_file(const std::string& filepath);
+
 private:
     //helpers
     static bool remove_node_recursive(SceneNode* parent, SceneNode* target);
